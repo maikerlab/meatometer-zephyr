@@ -24,7 +24,7 @@ Push Buttons:
 
 LED's:
 
-- `On/Off` (LED1 on the board, GPIO P1.06): Indicates if the device is powered on
+- `Power` (LED1 on the board, GPIO P1.06): Indicates if the device is powered on
 - `Measuring` (LED2 on the board, GPIO P1.07): If on, the measurement is active and temperature is continuously measured. If blinking, the target temperature was reached.
 
 Temperature Sensors:
