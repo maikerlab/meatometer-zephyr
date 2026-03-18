@@ -20,13 +20,12 @@ During development phase, the dev board [nRF7002 DK](https://www.nordicsemi.com/
 Push Buttons:
 
 - `On/Off` (Button 1 on the board, connected to GPIO P1.08): Turn device on or off
-- `Start/Stop` (Button 2 on the board, connected to GPIO P1.09): Start or stop temperature measurement
+- `Measure` (Button 2 on the board, connected to GPIO P1.09): Start or stop temperature measurement
 
 LED's:
 
 - `On/Off` (LED1 on the board, GPIO P1.06): Indicates if the device is powered on
-- `Status` (LED2 on the board, GPIO P1.07): If on, the measurement is active and temperature is continuously measured. If off, no temperature measurement is active.
-- `Done` (externally connected to GPIO P1.11): If the current temperature is at or above the set target temperature, this LED is on
+- `Measuring` (LED2 on the board, GPIO P1.07): If on, the measurement is active and temperature is continuously measured. If blinking, the target temperature was reached.
 
 Temperature Sensors:
 
@@ -45,24 +44,21 @@ The entrypoint (main function) of the app in [main.c](app/src/main.c):
 
 Queues:
 
-- `EventQueue`:
-  - Producers: Buttons (ISR), `MeasureTemp` -> send events to `AppState` thread
-  - Consumers: Only `AppState` (FSM) thread
-- `CommandQueue`:
-  - Producers: `AppState` thread (FSM) -> e.g. "fetch temperature measurement", "turn device on/off"
-  - Consumers: `MeasureTemp` -> measures temp. and sends read value to `EventQueue`
+- `event_queue`:
+  - Producers: Buttons (ISR), `measure_temp` -> send events to `state_machine` thread
+  - Consumers: Only `state_machine` thread
 
 Threads:
 
-- `AppState`: Runs a FSM (Finite State Machine) to control the current state of the device by handling events received by the `EventQueue`
+- `state_machine`: Runs a state machine to control the current state of the device by handling events received by the `event_queue`
   - Button On/Off pressed -> Toggle On/Off state
     - Off: switch to "stand-by" mode by turning off all LED's, stop any temperature measurements and put CPU to sleep
     - On: switch to "power on" state by turning on "Power" LED
   - Button Start/Stop pressed -> Toggle temperature measurement
     - Stop->Start: Continuously send `EVT_CTRL_TEMP_START` (fetch temperature measurement) to `CommandQueue`
-    - Start->Stop: Just stop sending events to `CommandQueue` - `MeasureTemp` will then "go to sleep", because it's waiting on an empty event queue
+    - Start->Stop: Just stop sending events to `CommandQueue` - `measure_temp` will then "go to sleep", because it's waiting on an empty event queue
   - Target temperature reached: Go to "Done" state
     - Turn on "Done" LED to indicate that the target temperature is reached
     - If target temperature falls again: go to previous state and continue measurement
-- `MeasureTemp`: periodically polls temperature from sensors
-  - `EVT_CTRL_TEMP_START` receive via `CommandQueue`: start sampling of temperature measurement, get value if ready and then send the value to `EventQueue`
+- `measure_temp`: periodically polls temperature from sensors
+  - `EVT_CTRL_TEMP_START` receive via `CommandQueue`: start sampling of temperature measurement, get value if ready and then send the value to `event_queue`
