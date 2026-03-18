@@ -34,9 +34,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: nrfconnect
-          key: west-ncs-v${NRF_CONNECT_SDK_VERSION}-${{ hashFiles('west.yml') }}
+          key: west-ncs-v${{ env.NRF_CONNECT_SDK_VERSION }}-${{ hashFiles('west.yml') }}
           restore-keys: |
-            west-ncs-v${NRF_CONNECT_SDK_VERSION}-
+            west-ncs-v${{ env.NRF_CONNECT_SDK_VERSION }}-
 
       - name: Initialize west workspace
         if: steps.cache-west.outputs.cache-hit != 'true'
@@ -66,7 +66,7 @@ jobs:
           tar -xf zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64_minimal.tar.xz \
             --strip-components=1 \
             -C ${ZEPHYR_SDK_INSTALL_DIR}
-          ${ZEPHYR_SDK_INSTALL_DIR}/setup.sh -t x86_64-zephyr-elf -h -c
+          ${ZEPHYR_SDK_INSTALL_DIR}/setup.sh -t x86_64-zephyr-elf -c
 
       - name: Save Zephyr SDK cache
         if: steps.cache-sdk.outputs.cache-hit != 'true'
