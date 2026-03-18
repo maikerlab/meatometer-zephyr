@@ -1,0 +1,35 @@
+/ {
+    aliases {
+        led-power = &led_0;
+        led-status = &led_1;
+        btn-power = &button0;
+        btn-start = &button1;
+        temp0 = &max31855;
+    };
+
+    buttons {
+        compatible = "gpio-keys";
+
+        button0: button_0 {
+            gpios = <&gpio1 8 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+            label = "Push button 1";
+        };
+
+        button1: button_1 {
+            gpios = <&gpio1 9 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+            label = "Push button 2";
+        };
+    };
+};
+
+&spi0 {
+    compatible = "zephyr,spi-emul-controller";
+    status = "okay";
+    cs-gpios = <&gpio1 25 GPIO_ACTIVE_LOW>;
+
+    max31855: max31855@0 {
+        compatible = "maxim,max31855";
+        reg = <0>;
+        spi-max-frequency = <1000000>;
+    };
+};

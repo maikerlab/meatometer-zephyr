@@ -1,0 +1,88 @@
+name: Unit Tests
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+jobs:
+    unit-tests:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    cmake ninja-build python3-pip python3-venv \
+                    gcc g++ git wget xz-utils file
+
+            - name: Install west
+              run: |
+                  pip3 install west
+
+            - name: Cache west modules
+              id: cache-west
+              uses: actions/cache@v4
+              with:
+                path: nrfconnect
+                key: west-ncs-v3.2.3-${{ hashFiles('west.yml') }}
+                restore-keys: |
+                  west-ncs-v3.2.3-
+            
+            - name: Initialize west workspace
+              if: steps.cache-west.outputs.cache-hit != 'true'
+              run: |
+                  west init -m https://github.com/nrfconnect/sdk-nrf \
+                    --mr v3.2.3 nrfconnect
+                  cd nrfconnect
+                  west update
+                  west zephyr-export
+
+            - name: Install Python requirements
+              run: |
+                  pip3 install -r nrfconnect/scripts/requirements.txt
+
+            - name: Cache Zephyr SDK
+              id: cache-sdk
+              uses: actions/cache@v4
+              with:
+                path: $HOME/zephyr-sdk-0.17.0
+                key: zephyr-sdk-0.17.0-x86_64
+            
+            - name: Download and install Zephyr SDK
+              if: steps.cache-west.outputs.cache-hit != 'true'
+              env:
+                  ZEPHYR_SDK_VERSION: 0.17.0
+              run: |
+                  wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64_minimal.tar.xz
+                  tar -xf zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64_minimal.tar.xz -C $HOME
+                  $HOME/zephyr-sdk-${ZEPHYR_SDK_VERSION}/setup.sh -t x86_64-zephyr-elf -h -c
+
+            - name: Run unit tests on native_sim
+              env:
+                  ZEPHYR_BASE: ${{ github.workspace }}/nrfconnect/zephyr
+              run: |
+                  cd nrfconnect
+                  west twister \
+                    -T ${{ github.workspace }}/app/tests/unit \
+                    --platform native_sim \
+                    --inline-logs \
+                    -v
+
+            - name: Upload test results
+              uses: actions/upload-artifact@v4
+              if: always()
+              with:
+                  name: twister-results
+                  path: nrfconnect/twister-out
+                  retention-days: 7
+
+            - name: Publish test results
+              uses: EnricoMi/publish-unit-test-result-action@v2
+              if: always()
+              with:
+                  files: nrfconnect/twister-out/**/twister.xml
