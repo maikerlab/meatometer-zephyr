@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  ZEPHYR_SDK_VERSION: 0.17.0
+  ZEPHYR_SDK_INSTALL_DIR: /opt/zephyr-sdk
+  NRF_CONNECT_SDK_VERSION: 3.2.3
+
 jobs:
   unit-tests:
     runs-on: ubuntu-24.04
@@ -29,15 +34,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: nrfconnect
-          key: west-ncs-v3.2.3-${{ hashFiles('west.yml') }}
+          key: west-ncs-v${NRF_CONNECT_SDK_VERSION}-${{ hashFiles('west.yml') }}
           restore-keys: |
-            west-ncs-v3.2.3-
+            west-ncs-v${NRF_CONNECT_SDK_VERSION}-
 
       - name: Initialize west workspace
         if: steps.cache-west.outputs.cache-hit != 'true'
         run: |
           west init -m https://github.com/nrfconnect/sdk-nrf \
-            --mr v3.2.3 nrfconnect
+            --mr v${NRF_CONNECT_SDK_VERSION} nrfconnect
           cd nrfconnect
           west update
           west zephyr-export
@@ -46,21 +51,29 @@ jobs:
         run: |
           pip3 install -r nrfconnect/nrf/scripts/requirements.txt
 
-      - name: Cache Zephyr SDK
+      - name: Restore Zephyr SDK cache
         id: cache-sdk
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
-          path: $HOME/zephyr-sdk-0.17.0
-          key: zephyr-sdk-0.17.0-x86_64
+          path: ${{ env.ZEPHYR_SDK_INSTALL_DIR }}
+          key: zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}-x86_64
 
       - name: Download and install Zephyr SDK
         if: steps.cache-west.outputs.cache-hit != 'true'
-        env:
-          ZEPHYR_SDK_VERSION: 0.17.0
         run: |
           wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64_minimal.tar.xz
-          tar -xf zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64_minimal.tar.xz -C $HOME
-          $HOME/zephyr-sdk-${ZEPHYR_SDK_VERSION}/setup.sh -t x86_64-zephyr-elf -h -c
+          sudo mkdir -p ${ZEPHYR_SDK_INSTALL_DIR}
+          tar -xf zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-x86_64_minimal.tar.xz \
+            --strip-components=1 \
+            -C ${ZEPHYR_SDK_INSTALL_DIR}
+          ${ZEPHYR_SDK_INSTALL_DIR}/setup.sh -t x86_64-zephyr-elf -h -c
+
+      - name: Save Zephyr SDK cache
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.ZEPHYR_SDK_INSTALL_DIR }}
+          key: zephyr-sdk-${{ env.ZEPHYR_SDK_VERSION }}-x86_64
 
       - name: Debug environment
         working-directory: nrfconnect
@@ -73,9 +86,10 @@ jobs:
 
       - name: Run unit tests on native_sim
         env:
-          ZEPHYR_BASE: ${{ github.workspace }}/nrfconnect/zephyr
+          ZEPHYR_TOOLCHAIN_VARIANT: zephyr
         working-directory: nrfconnect
         run: |
+          source zephyr/zephyr-env.sh
           west twister \
             -T ${{ github.workspace }}/app/tests/unit \
             --platform native_sim \
