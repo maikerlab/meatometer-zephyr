@@ -47,7 +47,6 @@ jobs:
           west sdk install -t x86_64-zephyr-elf
 
       - name: Run unit tests on native_sim
-        working-directory: nrfconnect
         run: |
           source ~/zephyrproject/.venv/bin/activate
           west twister \
