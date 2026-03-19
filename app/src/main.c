@@ -17,6 +17,7 @@
 #include "app/state_machine.h"
 #include "app/event_handler.h"
 #include "app/measure_temp.h"
+#include "comms/wifi_mgr.h"
 
 LOG_MODULE_REGISTER(main);
 
@@ -35,9 +36,13 @@ int main(void)
 	LOG_INF("Meatometer - v%s - arch: %s", APP_VERSION_STRING, CONFIG_ARCH);
 
 	const hal_iface_t *hal = hw_init();
-    sm_init(hal);
+	sm_init(hal);
 	measure_temp_init(hal, &app_event_queue);
 	event_handler_init(hal, &app_event_queue);
+
+	// Establish WiFi connection (non-blocking)
+	wifi_mgr_init(&app_event_queue);
+	wifi_mgr_connect();
 
 	// k_sleep(K_FOREVER);
 

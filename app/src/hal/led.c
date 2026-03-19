@@ -45,7 +45,7 @@ int led_init(void)
 void led_toggle(led_id_t id)
 {
     k_work_cancel_delayable(&blink_work[id]);
-    if (gpio_pin_toggle_dt(&leds[id] < 0))
+    if (gpio_pin_toggle_dt(&leds[id]) < 0)
     {
         LOG_ERR("Err toggling LED");
     }

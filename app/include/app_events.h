@@ -9,6 +9,7 @@ typedef enum {
     EVT_TEMP_UPDATE,
     EVT_WIFI_CONNECTED,
     EVT_WIFI_DISCONNECTED,
+    EVT_WIFI_CONNECT_FAILED,
     EVT_MQTT_READY,
 } app_event_type_t;
 
