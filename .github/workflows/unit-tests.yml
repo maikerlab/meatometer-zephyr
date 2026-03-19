@@ -61,11 +61,11 @@ jobs:
         if: always()
         with:
           name: twister-results
-          path: nrfconnect/twister-out
+          path: twister-out/
           retention-days: 7
 
       - name: Publish test results
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          files: nrfconnect/twister-out/**/twister.xml
+          files: twister-out/**/twister.xml
