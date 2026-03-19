@@ -43,11 +43,13 @@ jobs:
       - name: Install the Zephyr SDK
         run: |
           cd ~/zephyrproject/zephyr
+          source ~/zephyrproject/.venv/bin/activate
           west sdk install -t x86_64-zephyr-elf
 
       - name: Run unit tests on native_sim
         working-directory: nrfconnect
         run: |
+          source ~/zephyrproject/.venv/bin/activate
           west twister \
             -T ${{ github.workspace }}/app/tests/unit \
             --platform native_sim \
