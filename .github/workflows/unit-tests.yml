@@ -49,6 +49,7 @@ jobs:
       - name: Run unit tests on native_sim
         run: |
           source ~/zephyrproject/.venv/bin/activate
+          source ~/zephyrproject/zephyr/zephyr-env.sh
           west twister \
             -T ${{ github.workspace }}/app/tests/unit \
             --platform native_sim \
