@@ -17,7 +17,7 @@ static void on_mqtt_connack(enum mqtt_conn_return_code return_code, bool session
     if (return_code == MQTT_CONNECTION_ACCEPTED)
     {
         LOG_INF("Connected to MQTT broker");
-        LOG_INF("Hostname: %s", MQTT_BROKER_ADDR);
+        LOG_INF("Hostname: %s", CONFIG_APP_MQTT_BROKER_ADDR);
         LOG_INF("Client ID: %s", (char *)MQTT_CLIENT_ID);
         LOG_INF("Port: %d", CONFIG_MQTT_HELPER_PORT);
         LOG_INF("TLS: %s", IS_ENABLED(CONFIG_MQTT_LIB_TLS) ? "Yes" : "No");
@@ -77,19 +77,19 @@ void mqtt_mgr_init(struct k_msgq *event_queue)
 
 int mqtt_mgr_connect(void)
 {
-    LOG_INF("Connecting to MQTT broker at %s...", MQTT_BROKER_ADDR);
+    LOG_INF("Connecting to MQTT broker at %s...", CONFIG_APP_MQTT_BROKER_ADDR);
     struct mqtt_helper_conn_params conn_params = {
-        .hostname.ptr = MQTT_BROKER_ADDR,
-        .hostname.size = strlen(MQTT_BROKER_ADDR),
+        .hostname.ptr = CONFIG_APP_MQTT_BROKER_ADDR,
+        .hostname.size = strlen(CONFIG_APP_MQTT_BROKER_ADDR),
         .device_id.ptr = MQTT_CLIENT_ID,
         .device_id.size = strlen(MQTT_CLIENT_ID),
         .user_name = {
-            .ptr = MQTT_USERNAME,
-            .size = strlen(MQTT_USERNAME),
+            .ptr = CONFIG_APP_MQTT_USERNAME,
+            .size = strlen(CONFIG_APP_MQTT_USERNAME),
         },
         .password = {
-            .ptr = MQTT_PASSWORD,
-            .size = strlen(MQTT_PASSWORD),
+            .ptr = CONFIG_APP_MQTT_PASSWORD,
+            .size = strlen(CONFIG_APP_MQTT_PASSWORD),
         },
     };
 
