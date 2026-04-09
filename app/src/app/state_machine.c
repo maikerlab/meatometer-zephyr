@@ -3,11 +3,11 @@
 #include "app_events.h"
 #include "app_config.h"
 #include "hal_iface.h"
+#include "network_iface.h"
 #include "measure_temp.h"
 #include <zephyr/smf.h>
 #include <zephyr/logging/log.h>
 #include <stdatomic.h>
-#include "network_iface.h"
 
 LOG_MODULE_REGISTER(state_machine, LOG_LEVEL_DBG);
 
@@ -60,9 +60,10 @@ static atomic_int measuring_active;
 
 /* ── Public API ─────────────────────────────────────────────────── */
 
-void sm_init(const hal_iface_t *hal)
+void sm_init(const hal_iface_t *hal, const network_iface_t *net)
 {
     ctx.hal = hal;
+    ctx.net = net;
     ctx.target_temp = APP_TARGET_TEMP_DEFAULT_C;
     ctx.last_temp = 0.0f;
     ctx.led_power_on = false;
@@ -190,6 +191,7 @@ static enum smf_state_result state_measuring_run(void *o)
         /* Temperature update */
         c->last_temp = c->current_event.data.temperature;
         LOG_DBG("Temp: %.1f / %.1f °C", (double)c->last_temp, (double)c->target_temp);
+        c->net->mqtt_publish_temperature(c->last_temp);
         if (c->last_temp >= c->target_temp)
         {
             /* Target temperature reached → DONE */

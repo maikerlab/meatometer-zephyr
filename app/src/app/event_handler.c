@@ -6,7 +6,7 @@
 
 LOG_MODULE_REGISTER(event_handler, LOG_LEVEL_DBG);
 
-#define EVENT_THREAD_STACK_SIZE 1024
+#define EVENT_THREAD_STACK_SIZE 2048
 #define EVENT_THREAD_PRIORITY 5
 
 static struct k_msgq *evt_queue;
