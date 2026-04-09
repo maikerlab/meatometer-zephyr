@@ -10,15 +10,14 @@ LOG_MODULE_REGISTER(wifi_mgr, LOG_LEVEL_DBG);
 
 /* ── Kconfig values ───────────────────────────────────────────────────── */
 
-#define WIFI_SSID CONFIG_MEATOMETER_WIFI_SSID
-#define WIFI_PSK CONFIG_MEATOMETER_WIFI_PASSWORD
-#define CONNECT_TIMEOUT K_SECONDS(CONFIG_MEATOMETER_WIFI_CONNECT_TIMEOUT_S)
+#define CONNECT_TIMEOUT K_SECONDS(30)
 
 /* ── Internal state ────────────────────────────────────────────────── */
 
 #define EVENT_MASK (NET_EVENT_L4_CONNECTED | NET_EVENT_L4_DISCONNECTED)
 static struct k_msgq *evt_queue;
 static struct net_mgmt_event_callback mgmt_cb;
+static struct net_if *iface;
 static K_SEM_DEFINE(connect_sem, 0, 1);
 static bool connected;
 
@@ -56,8 +55,7 @@ static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 
 static int wifi_args_to_params(struct wifi_connect_req_params *params)
 {
-
-    // Populate the SSID and password
+    /* Populate SSID and password from Zephyr's WiFi credentials configuration */
     params->ssid = CONFIG_WIFI_CREDENTIALS_STATIC_SSID;
     params->ssid_length = strlen(params->ssid);
 
@@ -81,9 +79,21 @@ void wifi_mgr_init(struct k_msgq *queue)
     evt_queue = queue;
     connected = false;
 
-    LOG_INF("Initializing Wi-Fi driver...");
-    /* Sleep to allow initialization of Wi-Fi driver */
+    LOG_DBG("Initializing Wi-Fi driver...");
+    /* Sleep 1 sec. to allow initialization of Wi-Fi driver */
     k_sleep(K_SECONDS(1));
+    iface = net_if_get_first_wifi();
+    if (iface == NULL)
+    {
+        LOG_ERR("Returned network interface is NULL");
+        return -1;
+    }
+
+    while (!net_if_is_up(iface))
+    {
+        LOG_DBG("Waiting for Wi-Fi interface to be up...");
+        k_sleep(K_SECONDS(1));
+    }
 
     net_mgmt_init_event_callback(&mgmt_cb, net_mgmt_event_handler, EVENT_MASK);
     net_mgmt_add_event_callback(&mgmt_cb);
@@ -91,31 +101,18 @@ void wifi_mgr_init(struct k_msgq *queue)
 
 int wifi_mgr_connect(void)
 {
-    LOG_INF("Connect to SSID: %s", WIFI_SSID);
+    LOG_INF("Connecting to SSID: %s", CONFIG_WIFI_CREDENTIALS_STATIC_SSID);
 
     struct wifi_connect_req_params cnx_params;
 
-    struct net_if *iface = net_if_get_first_wifi();
-    if (iface == NULL)
-    {
-        LOG_ERR("Returned network interface is NULL");
-        return -1;
-    }
-
     wifi_args_to_params(&cnx_params);
 
-    int err = net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &cnx_params, sizeof(struct wifi_connect_req_params));
-    if (err)
-    {
-        LOG_ERR("Connecting to Wi-Fi failed, err: %d", err);
-        return ENOEXEC;
-    }
+    net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &cnx_params, sizeof(struct wifi_connect_req_params));
 
     // Wait for DHCP or timeout
     if (k_sem_take(&connect_sem, CONNECT_TIMEOUT) != 0)
     {
-        LOG_ERR("WiFi Timeout after %d seconds",
-                CONFIG_MEATOMETER_WIFI_CONNECT_TIMEOUT_S);
+        LOG_ERR("WiFi connect timeout!");
 
         app_event_t fail_evt = {
             .type = EVT_WIFI_CONNECT_FAILED,
@@ -132,6 +129,18 @@ int wifi_mgr_connect(void)
     }
 
     LOG_INF("WiFi connected!");
+    struct net_if_ipv4 *ipv4 = iface->config.ip.ipv4;
+    if (!ipv4)
+    {
+        LOG_ERR("No IPv4 address assigned to Wi-Fi interface");
+        return -EADDRNOTAVAIL;
+    }
+    char addr[NET_IPV4_ADDR_LEN];
+    net_addr_ntop(AF_INET,
+                  &ipv4->unicast[0].ipv4.address.in_addr,
+                  addr, sizeof(addr));
+    LOG_INF("Own IP: %s", addr);
+
     app_event_t conn_evt = {.type = EVT_WIFI_CONNECTED};
     k_msgq_put(evt_queue, &conn_evt, K_NO_WAIT);
 
