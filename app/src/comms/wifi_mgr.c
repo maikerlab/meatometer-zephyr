@@ -3,7 +3,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/net/net_mgmt.h>
 #include <zephyr/net/wifi_mgmt.h>
-#include <zephyr/net/wifi_credentials.h>
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(wifi_mgr, LOG_LEVEL_DBG);
@@ -32,7 +31,7 @@ static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
     }
     if (mgmt_event == NET_EVENT_L4_CONNECTED)
     {
-        LOG_INF("Network connected");
+        LOG_DBG("Received Wi-Fi connected event");
         connected = true;
         k_sem_give(&connect_sem);
         return;
@@ -41,11 +40,11 @@ static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
     {
         if (connected == false)
         {
-            LOG_INF("Waiting for network to be connected");
+            LOG_DBG("Waiting for Wi-Fi to be connected");
         }
         else
         {
-            LOG_INF("Network disconnected");
+            LOG_DBG("Wi-Fi disconnected");
             connected = false;
         }
         k_sem_reset(&connect_sem);
@@ -56,10 +55,10 @@ static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
 static int wifi_args_to_params(struct wifi_connect_req_params *params)
 {
     /* Populate SSID and password from Zephyr's WiFi credentials configuration */
-    params->ssid = CONFIG_WIFI_CREDENTIALS_STATIC_SSID;
+    params->ssid = CONFIG_APP_WIFI_SSID;
     params->ssid_length = strlen(params->ssid);
 
-    params->psk = CONFIG_WIFI_CREDENTIALS_STATIC_PASSWORD;
+    params->psk = CONFIG_APP_WIFI_PASSWORD;
     params->psk_length = strlen(params->psk);
 
     // Populate the rest of the relevant members
@@ -86,14 +85,14 @@ void wifi_mgr_init(struct k_msgq *queue)
     if (iface == NULL)
     {
         LOG_ERR("Returned network interface is NULL");
-        return -1;
     }
 
-    while (!net_if_is_up(iface))
-    {
-        LOG_DBG("Waiting for Wi-Fi interface to be up...");
-        k_sleep(K_SECONDS(1));
-    }
+    net_if_up(iface);
+    /*     while (!net_if_is_up(iface))
+        {
+            LOG_DBG("Waiting for Wi-Fi interface to be up...");
+            k_sleep(K_SECONDS(1));
+        } */
 
     net_mgmt_init_event_callback(&mgmt_cb, net_mgmt_event_handler, EVENT_MASK);
     net_mgmt_add_event_callback(&mgmt_cb);
@@ -101,7 +100,7 @@ void wifi_mgr_init(struct k_msgq *queue)
 
 int wifi_mgr_connect(void)
 {
-    LOG_INF("Connecting to SSID: %s", CONFIG_WIFI_CREDENTIALS_STATIC_SSID);
+    LOG_INF("Connecting to SSID: %s", CONFIG_APP_WIFI_SSID);
 
     struct wifi_connect_req_params cnx_params;
 
@@ -128,7 +127,7 @@ int wifi_mgr_connect(void)
         return -ECONNREFUSED;
     }
 
-    LOG_INF("WiFi connected!");
+    LOG_INF("Wi-Fi connected!");
     struct net_if_ipv4 *ipv4 = iface->config.ip.ipv4;
     if (!ipv4)
     {

@@ -1,0 +1,22 @@
+menu "Meatometer application configuration"
+
+config APP_WIFI_SSID
+    string "Wi-Fi SSID to connect to"
+    default "YourWiFiSSID"
+
+config APP_WIFI_PASSWORD
+    string "Wi-Fi password for the specified SSID"
+    default "YourWiFiPassword"
+
+config APP_MQTT_BROKER_ADDR
+	string "MQTT broker IP address"
+
+config APP_MQTT_USERNAME
+	string "MQTT username for authentication at broker"
+
+config APP_MQTT_PASSWORD
+	string "MQTT password for authentication at broker"
+
+endmenu
+
+source "Kconfig.zephyr"
