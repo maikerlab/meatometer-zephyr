@@ -1,5 +1,8 @@
 .vscode/
 .idea/
 .DS_Store
+.embedder/
 
 **/twister-out*
+.env
+.envrc

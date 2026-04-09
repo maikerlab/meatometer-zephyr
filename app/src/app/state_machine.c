@@ -7,6 +7,7 @@
 #include <zephyr/smf.h>
 #include <zephyr/logging/log.h>
 #include <stdatomic.h>
+#include "network_iface.h"
 
 LOG_MODULE_REGISTER(state_machine, LOG_LEVEL_DBG);
 
@@ -41,11 +42,12 @@ static const struct smf_state states[] = {
     [ST_DONE] = SMF_CREATE_STATE(state_done_entry, state_done_run, NULL, NULL, NULL),
 };
 
-/* ── Kontext ─────────────────────────────────────────────────────────── */
+/* ── Context ─────────────────────────────────────────────────────────── */
 typedef struct
 {
     struct smf_ctx smf; /* Muss erstes Element sein */
     const hal_iface_t *hal;
+    const network_iface_t *net;
     app_event_t current_event;
     float target_temp;
     float last_temp;
@@ -56,7 +58,7 @@ typedef struct
 static sm_ctx_t ctx;
 static atomic_int measuring_active;
 
-/* ── Öffentliche API ─────────────────────────────────────────────────── */
+/* ── Public API ─────────────────────────────────────────────────── */
 
 void sm_init(const hal_iface_t *hal)
 {
@@ -85,7 +87,7 @@ int sm_handle_event(const app_event_t *evt)
     return smf_run_state(SMF_CTX(&ctx));
 }
 
-/* ── Helper function: Toggle LED ──────────────────────────────────────── */
+/* ── Helper functions ──────────────────────────────────────── */
 
 static void toggle_led(sm_ctx_t *c, led_id_t led, bool *state)
 {
