@@ -11,7 +11,7 @@ static const network_iface_t iface = {
     .mqtt_publish_temperature = mqtt_mgr_publish_temperature,
 };
 
-network_iface_t *network_init(void)
+const network_iface_t *network_init(void)
 {
     return &iface;
 }

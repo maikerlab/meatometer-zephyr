@@ -6,7 +6,7 @@
 
 LOG_MODULE_REGISTER(measure_temp, LOG_LEVEL_INF);
 
-#define MEASURE_THREAD_STACK_SIZE 1024
+#define MEASURE_THREAD_STACK_SIZE 2048
 #define MEASURE_THREAD_PRIORITY 7
 
 /* ── Internal state ─────────────────────────────────────────────────── */

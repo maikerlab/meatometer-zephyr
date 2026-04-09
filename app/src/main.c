@@ -8,7 +8,6 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/app_version.h>
-#include <stdlib.h>
 #include "app_events.h"
 #include "app_config.h"
 #include "hal_iface.h"
@@ -41,12 +40,6 @@ int main(void)
 	// Initialize hardware and network interface
 	const hal_iface_t *hal = hw_init();
 	const network_iface_t *net = network_init();
-
-	// Initialize event handler
-	event_handler_init(hal, &app_event_queue);
-
-	// Initialize state machine with HAL
-	sm_init(hal);
 
 	// Establish WiFi connection (blocks until connected or timeout)
 	wifi_mgr_init(&app_event_queue);
@@ -82,18 +75,13 @@ int main(void)
 		return -1;
 	}
 
-	// Publish random temperature values for testing
-	srand(k_uptime_get_32());
-	while (true)
-	{
-		float min = 15.0f;
-		float max = 40.0f;
+	// Initialize event handler
+	event_handler_init(hal, &app_event_queue);
+	// Initialize temperature measurement thread
+	measure_temp_init(hal, &app_event_queue);
 
-		float r = (float)rand() / (float)RAND_MAX;
-		float test_temp = min + r * (max - min);
-		mqtt_mgr_publish_temperature(test_temp);
-		k_sleep(K_SECONDS(5));
-	}
+	// Initialize state machine with HAL and network interface
+	sm_init(hal, net);
 
 	return 0;
 }
