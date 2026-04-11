@@ -5,30 +5,24 @@
 
 /**
  * Abstract network interface.
- * In production code filled with real drivers, in tests with hal_net.c
+ * In production code filled with real drivers, in tests with mock_network.c
  */
 typedef struct
 {
-    /** Connects to the configured WiFi network.
+    /** Initializes the network interface.
      * @return 0 on success, negative error code on failure
      */
-    int (*wifi_connect)(void);
-    /** Disconnects from the WiFi network.
+    int (*init)(void);
+    /** Connects to the configured network.
      * @return 0 on success, negative error code on failure
      */
-    int (*wifi_disconnect)(void);
-
-    /** Connects to the MQTT broker.
+    int (*connect)(void);
+    /** Disconnects from the network.
      * @return 0 on success, negative error code on failure
      */
-    int (*mqtt_connect)(void);
-    /** Disconnects from the MQTT broker.
-     * @return 0 on success, negative error code on failure
+    int (*disconnect)(void);
+    /** Checks if the network is currently connected.
+     * @return true if connected, false otherwise
      */
-    int (*mqtt_disconnect)(void);
-    /** Publishes a temperature value to the MQTT broker.
-     * @param temp_celsius Temperature value in °C to publish
-     * @return 0 on success, negative error code on failure
-     */
-    int (*mqtt_publish_temperature)(float temp_celsius);
+    bool (*is_connected)(void);
 } network_iface_t;

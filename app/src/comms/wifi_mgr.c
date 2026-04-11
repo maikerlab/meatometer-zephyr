@@ -14,6 +14,19 @@ LOG_MODULE_REGISTER(wifi_mgr, LOG_LEVEL_DBG);
 /* ── Internal state ────────────────────────────────────────────────── */
 
 #define EVENT_MASK (NET_EVENT_L4_CONNECTED | NET_EVENT_L4_DISCONNECTED)
+
+/* Forward declarations */
+static void wifi_mgr_init(struct k_msgq *queue);
+static int wifi_mgr_connect(void);
+static int wifi_mgr_disconnect(void);
+static bool wifi_mgr_is_connected(void);
+
+static const network_iface_t net_iface = {
+    .init = wifi_mgr_init,
+    .connect = wifi_mgr_connect,
+    .disconnect = wifi_mgr_disconnect,
+    .is_connected = wifi_mgr_is_connected,
+};
 static struct k_msgq *evt_queue;
 static struct net_mgmt_event_callback mgmt_cb;
 static struct net_if *iface;
@@ -71,11 +84,13 @@ static int wifi_args_to_params(struct wifi_connect_req_params *params)
     return 0;
 }
 
-/* ── Public API ─────────────────────────────────────────────────── */
-
-void wifi_mgr_init(struct k_msgq *queue)
+/**
+ * Initializes the WiFi manager and registers net-management callbacks.
+ * Must be called before wifi_connect().
+ * @param event_queue Pointer to the app event message queue for posting WiFi events.
+ */
+static void wifi_mgr_init()
 {
-    evt_queue = queue;
     connected = false;
 
     LOG_DBG("Initializing Wi-Fi driver...");
@@ -98,7 +113,15 @@ void wifi_mgr_init(struct k_msgq *queue)
     net_mgmt_add_event_callback(&mgmt_cb);
 }
 
-int wifi_mgr_connect(void)
+/**
+ * Starts the Wi-Fi connection process with configured SSID and passphrase.
+ * Result will be posted as EVT_WIFI_CONNECTED or EVT_WIFI_CONNECT_FAILED in the event queue.
+ * @return 0 on success,
+ *   -ENOEXEC if connection initiation failed,
+ *   -ETIMEDOUT if connection timed out,
+ *   or -ECONNREFUSED if connection was refused.
+ */
+static int wifi_mgr_connect(void)
 {
     LOG_INF("Connecting to SSID: %s", CONFIG_APP_WIFI_SSID);
 
@@ -106,7 +129,7 @@ int wifi_mgr_connect(void)
 
     wifi_args_to_params(&cnx_params);
 
-    net_mgmt(NET_REQUEST_WIFI_CONNECT, iface, &cnx_params, sizeof(struct wifi_connect_req_params));
+    net_mgmt(NET_REQUEST_WIFI_CONNECT, &iface, &cnx_params, sizeof(struct wifi_connect_req_params));
 
     // Wait for DHCP or timeout
     if (k_sem_take(&connect_sem, CONNECT_TIMEOUT) != 0)
@@ -146,7 +169,13 @@ int wifi_mgr_connect(void)
     return 0;
 }
 
-int wifi_mgr_disconnect(void)
+/**
+ * Disconnects the Wi-Fi connection.
+ * @return 0 on success,
+ *   -ENOEXEC if disconnection failed,
+ *   or -ENODEV if no Wi-Fi interface is available
+ */
+static int wifi_mgr_disconnect(void)
 {
     struct net_if *iface = net_if_get_first_wifi();
     if (!iface)
@@ -168,7 +197,16 @@ int wifi_mgr_disconnect(void)
     return err;
 }
 
-bool wifi_mgr_is_connected(void)
+/**
+ * Returns true if currently connected and an IP address is available.
+ */
+static bool wifi_mgr_is_connected(void)
 {
     return connected;
+}
+
+const network_iface_t *wifi_get_iface(struct k_msgq *msgq)
+{
+    evt_queue = msgq;
+    return &net_iface;
 }

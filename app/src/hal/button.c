@@ -18,7 +18,7 @@ static btn_callback_t          user_callback;
 
 static void gpio_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
-    /* Welchen Button hat der ISR ausgelöst? */
+    /* Check which button triggered the interrupt */
     for (btn_id_t i = 0; i < BTN_COUNT; i++) {
         if (cb == &gpio_cb_data[i] && user_callback) {
             user_callback(i);

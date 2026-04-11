@@ -2,8 +2,7 @@
 
 #include "hal_iface.h"
 
-/**
- * Initialisiert alle Hardware-Komponenten und gibt
- * eine fertig verdrahtete hal_iface_t zurück.
+/** Get the hardware abstraction layer interface.
+ * @return Pointer to the hal_iface_t.
  */
-const hal_iface_t *hw_init(void);
+const hal_iface_t *hal_get_iface(void);

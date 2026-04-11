@@ -3,7 +3,15 @@
 #include "led.h"
 #include "button.h"
 
+static int hw_init(void)
+{
+    sensor_init();
+    led_init();
+    button_init();
+}
+
 static const hal_iface_t iface = {
+    .init = hw_init,
     .read_temp = sensor_temp_read,
     .led_set = led_set,
     .led_toggle = led_toggle,
@@ -12,10 +20,7 @@ static const hal_iface_t iface = {
     .btn_register_callback = button_register_callback,
 };
 
-const hal_iface_t *hw_init(void)
+const hal_iface_t *hal_get_iface(void)
 {
-    sensor_init();
-    led_init();
-    button_init();
     return &iface;
 }
