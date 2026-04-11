@@ -12,9 +12,8 @@
 typedef void (*ble_prov_done_cb_t)(void);
 
 /** Abstract BLE provisioning interface. */
-typedef struct
-{
-	int (*init)(void);
-	int (*start)(void);
-	int (*stop)(void);
+typedef struct {
+  int (*init)(void);
+  int (*start)(void);
+  int (*stop)(void);
 } ble_prov_iface_t;

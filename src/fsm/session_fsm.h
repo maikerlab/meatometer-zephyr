@@ -1,9 +1,9 @@
 #pragma once
 
-#include <stdbool.h>
+#include "app_events.h"
 #include "hal_iface.h"
 #include "mqtt_iface.h"
-#include "app_events.h"
+#include <stdbool.h>
 
 void sm_init(const hal_iface_t *hal, const mqtt_iface_t *mqtt);
 void sm_set_target_temp(float celsius);

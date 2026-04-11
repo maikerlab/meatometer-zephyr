@@ -1,8 +1,8 @@
 #pragma once
 
+#include "network_iface.h"
 #include <stdbool.h>
 #include <zephyr/kernel.h>
-#include "network_iface.h"
 
 /**
  * Initializes the Wi-Fi interface

@@ -1,7 +1,7 @@
 #pragma once
-#include <stdint.h>
-#include <stdbool.h>
 #include "hal_iface.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 int led_init(void);
 void led_toggle(led_id_t id);

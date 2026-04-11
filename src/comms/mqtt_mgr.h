@@ -1,7 +1,7 @@
 #pragma once
 
-#include <zephyr/kernel.h>
 #include "mqtt_iface.h"
+#include <zephyr/kernel.h>
 
 /**
  * Initializes the MQTT interface

@@ -8,38 +8,28 @@ static btn_callback_t mock_btn_cb;
 
 /* ── Mock-Implementierungen ──────────────────────────────────────────── */
 
-static int mock_init(void)
-{
-    return 0;
-}
-static int mock_read_temp(float *out)
-{
-    *out = mock_temp;
-    return 0;
+static int mock_init(void) { return 0; }
+static int mock_read_temp(float *out) {
+  *out = mock_temp;
+  return 0;
 }
 
-static void mock_led_set(led_id_t id, bool on)
-{
-    mock_leds[id] = on;
-    mock_blink[id] = false; /* blink wird durch set überschrieben */
+static void mock_led_set(led_id_t id, bool on) {
+  mock_leds[id] = on;
+  mock_blink[id] = false; /* blink wird durch set überschrieben */
 }
 
-static void mock_led_blink(led_id_t id, uint32_t period_ms)
-{
-    (void)(period_ms);
-    mock_blink[id] = true;
+static void mock_led_blink(led_id_t id, uint32_t period_ms) {
+  (void)(period_ms);
+  mock_blink[id] = true;
 }
 
-static void mock_led_all_off(void)
-{
-    memset(mock_leds, 0, sizeof(mock_leds));
-    memset(mock_blink, 0, sizeof(mock_blink));
+static void mock_led_all_off(void) {
+  memset(mock_leds, 0, sizeof(mock_leds));
+  memset(mock_blink, 0, sizeof(mock_blink));
 }
 
-static void mock_btn_register_callback(btn_callback_t cb)
-{
-    mock_btn_cb = cb;
-}
+static void mock_btn_register_callback(btn_callback_t cb) { mock_btn_cb = cb; }
 
 static const hal_iface_t mock_iface = {
     .init = mock_init,
@@ -54,11 +44,10 @@ static const hal_iface_t mock_iface = {
 
 const hal_iface_t *hal_mock_get_iface(void) { return &mock_iface; }
 
-void hal_mock_reset(void)
-{
-    mock_temp = 20.0f;
-    mock_btn_cb = NULL;
-    mock_led_all_off();
+void hal_mock_reset(void) {
+  mock_temp = 20.0f;
+  mock_btn_cb = NULL;
+  mock_led_all_off();
 }
 
 bool hal_mock_led_get(led_id_t id) { return mock_leds[id]; }
