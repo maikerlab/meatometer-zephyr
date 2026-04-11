@@ -5,14 +5,10 @@
 
 LOG_MODULE_REGISTER(led, LOG_LEVEL_DBG);
 
-#define LED_PWR_NODE DT_ALIAS(led_power)
-#define LED_STATUS_NODE DT_ALIAS(led_measuring)
-
 /* Devicetree-Aliases: led-power, led-measuring, led-done */
 static const struct gpio_dt_spec leds[LED_COUNT] = {
-    [LED_POWER] = GPIO_DT_SPEC_GET(DT_ALIAS(led_power), gpios),
     [LED_MEASURING] = GPIO_DT_SPEC_GET(DT_ALIAS(led_measuring), gpios),
-    //    [LED_DONE]      = GPIO_DT_SPEC_GET(DT_ALIAS(led_done),       gpios),
+    [LED_STATUS] = GPIO_DT_SPEC_GET(DT_ALIAS(led_status), gpios),
 };
 
 /* Blink-Work pro LED */

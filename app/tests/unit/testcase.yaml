@@ -1,7 +1,7 @@
 tests:
-  app.state_machine:
+  app.unit_tests:
     platform_allow:
       - native_sim
       - nrf7002dk/nrf5340/cpuapp
-    tags: state_machine
+    tags: unit_tests
     harness: ztest

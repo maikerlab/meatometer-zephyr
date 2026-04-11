@@ -1,4 +1,5 @@
 #pragma once
+
 #include <stdbool.h>
 #include "hal_iface.h"
 #include "mqtt_iface.h"

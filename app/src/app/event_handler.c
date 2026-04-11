@@ -1,8 +1,8 @@
-#include "event_handler.h"
-#include "state_machine.h"
-#include "app_events.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include "event_handler.h"
+#include "fsm/session_fsm.h"
+#include "app_events.h"
 
 LOG_MODULE_REGISTER(event_handler, LOG_LEVEL_DBG);
 
@@ -21,8 +21,8 @@ static struct k_thread event_thread_data;
 static void on_button_pressed(btn_id_t btn)
 {
     const app_event_t evt_map[BTN_COUNT] = {
-        [BTN_POWER] = {.type = EVT_BTN_POWER},
         [BTN_MEASURE] = {.type = EVT_BTN_MEASURE},
+        [BTN_RECONNECT_WIFI] = {.type = EVT_BTN_RECONNECT_WIFI},
     };
 
     k_msgq_put(evt_queue, &evt_map[btn], K_NO_WAIT);

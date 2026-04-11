@@ -5,8 +5,10 @@
 
 typedef enum
 {
-    LED_POWER = 0,
-    LED_MEASURING,
+    /* Measurement is in progress */
+    LED_MEASURING = 0,
+    /* Status LED - On: WiFi connected, Blinking: Target temperature reached */
+    LED_STATUS,
     LED_COUNT,
 } led_id_t;
 
@@ -14,8 +16,10 @@ typedef enum
 
 typedef enum
 {
-    BTN_POWER = 0, /* Ein/Aus */
-    BTN_MEASURE,   /* Start/Stop Messung */
+    /* Start/Stop measurement */
+    BTN_MEASURE = 0,
+    /* Reconnect Wi-Fi (start BLE advertising) */
+    BTN_RECONNECT_WIFI,
     BTN_COUNT,
 } btn_id_t;
 

@@ -45,12 +45,12 @@ The entrypoint (main function) of the app in [main.c](app/src/main.c):
 Queues:
 
 - `event_queue`:
-  - Producers: Buttons (ISR), `measure_temp` -> send events to `state_machine` thread
-  - Consumers: Only `state_machine` thread
+  - Producers: Buttons (ISR), `measure_temp` -> send events to `session_fsm` thread
+  - Consumers: Only `session_fsm` thread
 
 Threads:
 
-- `state_machine`: Runs a state machine to control the current state of the device by handling events received by the `event_queue`
+- `session_fsm`: Runs a state machine to control the current state of the device by handling events received by the `event_queue`
   - Button On/Off pressed -> Toggle On/Off state
     - Off: switch to "stand-by" mode by turning off all LED's, stop any temperature measurements and put CPU to sleep
     - On: switch to "power on" state by turning on "Power" LED

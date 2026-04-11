@@ -9,9 +9,10 @@ target_include_directories(app PRIVATE
 )
 
 target_sources(app PRIVATE
-    test_state_machine.c
+    test_session_fsm.c
     mocks/hal_mock.c
-    ../../src/app/state_machine.c
+    mocks/mqtt_mock.c
+    ../../src/fsm/session_fsm.c
     ../../src/app/measure_temp.c
     # measure_thread.c bewusst NICHT inkludiert — wird gemockt
 )

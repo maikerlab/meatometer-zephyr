@@ -10,7 +10,7 @@
 #include "app_events.h"
 #include "app_config.h"
 #include "hal/hw_init.h"
-#include "app/state_machine.h"
+#include "fsm/session_fsm.h"
 #include "app/event_handler.h"
 #include "app/measure_temp.h"
 #include "comms/wifi_mgr.h"

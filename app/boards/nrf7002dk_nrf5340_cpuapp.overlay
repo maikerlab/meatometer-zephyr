@@ -1,9 +1,9 @@
 / {
 	aliases {
-		led-power = &led0;
-		led-measuring = &led1;
-		btn-power = &button0;
-		btn-measure = &button1;
+		led-measuring = &led0;
+		led-status = &led1;
+		btn-measure = &button0;
+		btn-reconnect-wifi = &button1;
 		temp0 = &max31855;
 	};
 };
