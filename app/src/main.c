@@ -45,38 +45,6 @@ int main(void)
 	mqtt->init();
 	ble_prov->init();
 
-	// Establish WiFi connection (blocks until connected or timeout)
-	int retries = 5;
-	while (retries--)
-	{
-		if (wifi->connect() != 0)
-		{
-			LOG_WRN("Failed to connect to WiFi, retrying in 1s... (%d retries left)", retries);
-			k_sleep(K_SECONDS(1));
-		}
-	}
-
-	k_sleep(K_SECONDS(1));
-
-	int ret;
-	retries = 5;
-	while (retries--)
-	{
-		ret = mqtt->connect();
-		if (ret == 0)
-		{
-			break;
-		}
-		LOG_WRN("MQTT connect failed (%d), retrying in 1s... (%d left)", ret, retries);
-		k_sleep(K_SECONDS(1));
-	}
-
-	if (ret != 0)
-	{
-		LOG_ERR("Failed to connect to MQTT broker after retries. Halting.");
-		return -1;
-	}
-
 	// Initialize event handler
 	event_handler_init(hal, &app_event_queue);
 	// Initialize temperature measurement thread
@@ -84,6 +52,8 @@ int main(void)
 
 	// Initialize state machine with HAL and network interface
 	sm_init(hal, mqtt);
+
+	ble_prov->start();
 
 	return 0;
 }

@@ -1,0 +1,5 @@
+source "${ZEPHYR_BASE}/share/sysbuild/Kconfig"
+
+# Enable the IPC radio firmware in Sysbuild
+config NRF_DEFAULT_IPC_RADIO
+	default y

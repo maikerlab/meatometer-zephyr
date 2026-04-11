@@ -156,16 +156,16 @@ static int mqtt_mgr_disconnect(void)
 
 static int mqtt_mgr_publish_temperature(float temp_celsius)
 {
-    while (!mqtt_connected)
+    if (!mqtt_connected)
     {
-        LOG_WRN("Cannot publish, MQTT not connected - retrying in 100ms...");
-        k_sleep(K_MSEC(100));
+        LOG_WRN("MQTT not connected - skipping publish!");
+        return -ENOTCONN;
     }
 
     LOG_INF("Publishing temperature: %.1f °C", temp_celsius);
 
     char payload[32];
-    snprintk(payload, sizeof(payload), "%.2f", temp_celsius);
+    snprintk(payload, sizeof(payload), "%.1f", temp_celsius);
 
     struct mqtt_publish_param mqtt_param;
     mqtt_param.message.payload.data = (uint8_t *)payload;
