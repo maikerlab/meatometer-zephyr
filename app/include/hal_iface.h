@@ -7,7 +7,6 @@ typedef enum
 {
     LED_POWER = 0,
     LED_MEASURING,
-    //    LED_DONE,
     LED_COUNT,
 } led_id_t;
 
@@ -29,6 +28,11 @@ typedef void (*btn_callback_t)(btn_id_t btn);
  */
 typedef struct
 {
+    /** Initializes the hardware interface.
+     * @return 0 on success, negative error code on failure
+     */
+    int (*init)(void);
+
     /** Reads temperaturein °C.
      * @param out_celsius Pointer to store the read temperature value
      * @return 0 on success, negative error code on failure

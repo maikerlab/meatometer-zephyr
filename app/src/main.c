@@ -5,21 +5,17 @@
  */
 
 #include <zephyr/kernel.h>
-#include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/app_version.h>
 #include "app_events.h"
 #include "app_config.h"
-#include "hal_iface.h"
-#include "hal/led.h"
-#include "hal/sensor.h"
 #include "hal/hw_init.h"
-#include "comms/net_init.h"
 #include "app/state_machine.h"
 #include "app/event_handler.h"
 #include "app/measure_temp.h"
 #include "comms/wifi_mgr.h"
 #include "comms/mqtt_mgr.h"
+#include "comms/ble_prov.h"
 
 LOG_MODULE_REGISTER(main);
 
@@ -37,16 +33,23 @@ int main(void)
 {
 	LOG_INF("Meatometer - v%s - arch: %s", APP_VERSION_STRING, CONFIG_ARCH);
 
-	// Initialize hardware and network interface
-	const hal_iface_t *hal = hw_init();
-	const network_iface_t *net = network_init();
+	// Get all interfaces
+	const hal_iface_t *hal = hal_get_iface();
+	const network_iface_t *wifi = wifi_get_iface(&app_event_queue);
+	const mqtt_iface_t *mqtt = mqtt_get_iface(&app_event_queue);
+	const ble_prov_iface_t *ble_prov = ble_prov_get_iface(&app_event_queue);
+
+	// Initialize subsystems
+	hal->init();
+	wifi->init();
+	mqtt->init();
+	ble_prov->init();
 
 	// Establish WiFi connection (blocks until connected or timeout)
-	wifi_mgr_init(&app_event_queue);
 	int retries = 5;
 	while (retries--)
 	{
-		if (wifi_mgr_connect() != 0)
+		if (wifi->connect() != 0)
 		{
 			LOG_WRN("Failed to connect to WiFi, retrying in 1s... (%d retries left)", retries);
 			k_sleep(K_SECONDS(1));
@@ -54,13 +57,12 @@ int main(void)
 	}
 
 	k_sleep(K_SECONDS(1));
-	mqtt_mgr_init(&app_event_queue);
 
 	int ret;
 	retries = 5;
 	while (retries--)
 	{
-		ret = mqtt_mgr_connect();
+		ret = mqtt->connect();
 		if (ret == 0)
 		{
 			break;
@@ -81,7 +83,7 @@ int main(void)
 	measure_temp_init(hal, &app_event_queue);
 
 	// Initialize state machine with HAL and network interface
-	sm_init(hal, net);
+	sm_init(hal, mqtt);
 
 	return 0;
 }

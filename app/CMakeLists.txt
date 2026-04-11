@@ -5,5 +5,17 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(meatometer)
 
 target_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-FILE(GLOB_RECURSE app_sources src/*.c)
-target_sources(app PRIVATE ${app_sources})
+
+target_sources(app PRIVATE
+    src/main.c
+    src/app/event_handler.c
+    src/app/measure_temp.c
+    src/app/state_machine.c
+    src/comms/ble_prov.c
+    src/comms/wifi_mgr.c
+    src/comms/mqtt_mgr.c
+    src/hal/hw_init.c
+    src/hal/button.c
+    src/hal/led.c
+    src/hal/sensor.c
+)

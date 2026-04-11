@@ -21,7 +21,8 @@ static void before_each(void *f)
 {
     (void)(f);
     hal_mock_reset();
-    sm_init(hal_mock_get_iface());
+    // TODO: create mock for mqtt iface and pass as 2nd argument
+    sm_init(hal_mock_get_iface(), NULL);
 }
 
 ZTEST_SUITE(state_machine, NULL, NULL, before_each, NULL, NULL);

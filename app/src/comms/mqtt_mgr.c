@@ -11,6 +11,45 @@ static bool mqtt_connected;
 
 LOG_MODULE_REGISTER(mqtt_mgr, LOG_LEVEL_DBG);
 
+/* Forward declarations */
+
+/**
+ * Initializes the MQTT manager.
+ * Must be called before mqtt_mgr_connect().
+ * @param event_queue Pointer to the app event message queue.
+ */
+static int mqtt_mgr_init(void);
+/**
+ * Connects to the MQTT broker configured in app_config.h.
+ * Blocks until CONNACK is received or timeout expires.
+ * On success, starts a background polling thread for keep-alive.
+ * @return 0 on success, negative errno on failure.
+ */
+static int mqtt_mgr_connect(void);
+/**
+ * Disconnects from the MQTT broker and stops the polling thread.
+ * @return 0 on success, negative errno on failure.
+ */
+static int mqtt_mgr_disconnect(void);
+/**
+ * Returns true if currently connected to the MQTT broker.
+ */
+static bool mqtt_mgr_is_connected(void);
+/**
+ * Publishes a temperature value to the configured MQTT topic.
+ * @param temp_celsius Temperature in degrees Celsius.
+ * @return 0 on success, negative errno on failure.
+ */
+static int mqtt_mgr_publish_temperature(float temp_celsius);
+
+static const mqtt_iface_t mqtt_iface = {
+    .init = mqtt_mgr_init,
+    .connect = mqtt_mgr_connect,
+    .is_connected = mqtt_mgr_is_connected,
+    .disconnect = mqtt_mgr_disconnect,
+    .publish_temperature = mqtt_mgr_publish_temperature,
+};
+
 // Callback functions
 static void on_mqtt_connack(enum mqtt_conn_return_code return_code, bool session_present)
 {
@@ -60,7 +99,7 @@ static void on_mqtt_disconnect(int result)
     LOG_INF("MQTT client disconnected: %d", result);
 }
 
-void mqtt_mgr_init(struct k_msgq *event_queue)
+static int mqtt_mgr_init(void)
 {
     LOG_DBG("Initializing MQTT manager");
     mqtt_connected = false;
@@ -75,7 +114,7 @@ void mqtt_mgr_init(struct k_msgq *event_queue)
     mqtt_helper_init(&config);
 }
 
-int mqtt_mgr_connect(void)
+static int mqtt_mgr_connect(void)
 {
     LOG_INF("Connecting to MQTT broker at %s...", CONFIG_APP_MQTT_BROKER_ADDR);
     struct mqtt_helper_conn_params conn_params = {
@@ -103,7 +142,7 @@ int mqtt_mgr_connect(void)
     return 0;
 }
 
-int mqtt_mgr_disconnect(void)
+static int mqtt_mgr_disconnect(void)
 {
     int ret = mqtt_helper_disconnect();
     if (ret != 0)
@@ -115,14 +154,14 @@ int mqtt_mgr_disconnect(void)
     return 0;
 }
 
-int mqtt_mgr_publish_temperature(float temp_celsius)
+static int mqtt_mgr_publish_temperature(float temp_celsius)
 {
     while (!mqtt_connected)
     {
         LOG_WRN("Cannot publish, MQTT not connected - retrying in 100ms...");
         k_sleep(K_MSEC(100));
     }
-    
+
     LOG_INF("Publishing temperature: %.1f °C", temp_celsius);
 
     char payload[32];
@@ -153,7 +192,13 @@ int mqtt_mgr_publish_temperature(float temp_celsius)
     return 0;
 }
 
-bool mqtt_mgr_is_connected(void)
+static bool mqtt_mgr_is_connected(void)
 {
     return mqtt_connected;
+}
+
+const mqtt_iface_t *mqtt_get_iface(struct k_msgq *msgq)
+{
+    evt_queue = msgq;
+    return &mqtt_iface;
 }
