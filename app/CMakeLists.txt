@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.20.0)
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(meatometer)
 
@@ -19,3 +20,7 @@ target_sources(app PRIVATE
     src/hal/led.c
     src/hal/sensor.c
 )
+
+zephyr_library_include_directories($<TARGET_PROPERTY:wifi_prov_core,BINARY_DIR>)
+
+target_link_libraries(app PRIVATE wifi_prov_ble)

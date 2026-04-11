@@ -16,7 +16,7 @@ LOG_MODULE_REGISTER(wifi_mgr, LOG_LEVEL_DBG);
 #define EVENT_MASK (NET_EVENT_L4_CONNECTED | NET_EVENT_L4_DISCONNECTED)
 
 /* Forward declarations */
-static void wifi_mgr_init(struct k_msgq *queue);
+static int wifi_mgr_init(void);
 static int wifi_mgr_connect(void);
 static int wifi_mgr_disconnect(void);
 static bool wifi_mgr_is_connected(void);
@@ -47,6 +47,10 @@ static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
         LOG_DBG("Received Wi-Fi connected event");
         connected = true;
         k_sem_give(&connect_sem);
+        app_event_t connect_evt = {
+            .type = EVT_WIFI_CONNECTED,
+        };
+        k_msgq_put(evt_queue, &connect_evt, K_NO_WAIT);
         return;
     }
     if (mgmt_event == NET_EVENT_L4_DISCONNECTED)
@@ -59,6 +63,10 @@ static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
         {
             LOG_DBG("Wi-Fi disconnected");
             connected = false;
+            app_event_t disconnect_evt = {
+                .type = EVT_WIFI_DISCONNECTED,
+            };
+            k_msgq_put(evt_queue, &disconnect_evt, K_NO_WAIT);
         }
         k_sem_reset(&connect_sem);
         return;
@@ -89,7 +97,7 @@ static int wifi_args_to_params(struct wifi_connect_req_params *params)
  * Must be called before wifi_connect().
  * @param event_queue Pointer to the app event message queue for posting WiFi events.
  */
-static void wifi_mgr_init()
+static int wifi_mgr_init(void)
 {
     connected = false;
 
@@ -111,6 +119,8 @@ static void wifi_mgr_init()
 
     net_mgmt_init_event_callback(&mgmt_cb, net_mgmt_event_handler, EVENT_MASK);
     net_mgmt_add_event_callback(&mgmt_cb);
+
+    return 0;
 }
 
 /**

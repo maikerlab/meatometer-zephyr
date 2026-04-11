@@ -115,8 +115,8 @@ static enum smf_state_result state_off_run(void *o)
     sm_ctx_t *c = (sm_ctx_t *)o;
     switch (c->current_event.type)
     {
-    case EVT_BTN_POWER:
-        /* Power Button pressed: go to IDLE, Power-LED on */
+    case EVT_WIFI_CONNECTED:
+        /* Wi-Fi connected: go to IDLE, Power-LED on */
         smf_set_state(SMF_CTX(c), &states[ST_IDLE]);
         break;
     default:
@@ -151,6 +151,10 @@ static enum smf_state_result state_idle_run(void *o)
         break;
     case EVT_BTN_MEASURE:
         smf_set_state(SMF_CTX(c), &states[ST_MEASURING]);
+        break;
+    case EVT_WIFI_DISCONNECTED:
+        /* Wi-Fi disconnected: go back to OFF */
+        smf_set_state(SMF_CTX(c), &states[ST_OFF]);
         break;
     default:
         break;
