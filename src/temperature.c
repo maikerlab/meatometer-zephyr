@@ -1,18 +1,17 @@
-#include "measure_temp.h"
+// tests/unit/mocks/hal_mock.c
+#include "temperature.h"
 #include "app_config.h"
 #include "app_events.h"
-#include <zephyr/kernel.h>
+#include "hal_iface.h"
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/sensor.h>
+#include <zephyr/drivers/spi.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(measure_temp, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(sensor, LOG_LEVEL_DBG);
 
 #define MEASURE_THREAD_STACK_SIZE 2048
 #define MEASURE_THREAD_PRIORITY 7
-
-/* ── Internal state ─────────────────────────────────────────────────── */
-
-static const hal_iface_t *hal_ref;
-static struct k_msgq *evt_queue;
 
 /*
  * Binary semaphore: give = start measuring, take = stop measuring.
@@ -21,10 +20,10 @@ static struct k_msgq *evt_queue;
 K_SEM_DEFINE(measure_sem, 0, 1);
 
 K_THREAD_STACK_DEFINE(measure_thread_stack, MEASURE_THREAD_STACK_SIZE);
-static struct k_thread measure_thread_data;
 
-/* ── Thread function
- * ──────────────────────────────────────────────────────────── */
+static struct k_msgq *evt_queue;
+static const sensor_iface_t *sensor_ref;
+static struct k_thread measure_thread_data;
 
 static void measure_thread_fn(void *p1, void *p2, void *p3) {
   ARG_UNUSED(p1);
@@ -32,13 +31,13 @@ static void measure_thread_fn(void *p1, void *p2, void *p3) {
   ARG_UNUSED(p3);
 
   while (true) {
-    /* Warte bis Messen gestartet wird */
+    /* Wait until measurement is started */
     k_sem_take(&measure_sem, K_FOREVER);
     LOG_INF("Measuring started");
 
     while (true) {
       float temp;
-      int ret = hal_ref->read_temp(&temp);
+      int ret = sensor_ref->read_temp(&temp);
 
       if (ret == 0) {
         app_event_t evt = {
@@ -64,12 +63,11 @@ static void measure_thread_fn(void *p1, void *p2, void *p3) {
   }
 }
 
-/** Initialize temperature measurement and starts measure_thread
- * @param hal Pointer to hardware interface
- * @param queue Pointer to app event message queue
- */
-void measure_temp_init(const hal_iface_t *hal, struct k_msgq *queue) {
-  hal_ref = hal;
+/* ── Public API ─────────────────────────────────────────────── */
+
+int temperature_init(const sensor_iface_t *sensor, struct k_msgq *queue) {
+  LOG_INF("Initializing temperature measurement...");
+  sensor_ref = sensor;
   evt_queue = queue;
 
   k_thread_create(&measure_thread_data, measure_thread_stack,
@@ -77,10 +75,12 @@ void measure_temp_init(const hal_iface_t *hal, struct k_msgq *queue) {
                   measure_thread_fn, NULL, NULL, NULL, MEASURE_THREAD_PRIORITY,
                   0, K_NO_WAIT);
   k_thread_name_set(&measure_thread_data, "measure_thread");
+
+  return 0;
 }
 
 /** Start temperature measurement */
-void measure_temp_start(void) { k_sem_give(&measure_sem); }
+void temperature_start(void) { k_sem_give(&measure_sem); }
 
 /** Stop temperature measurement */
-void measure_temp_stop(void) { k_sem_give(&measure_sem); }
+void temperature_stop(void) { k_sem_give(&measure_sem); }

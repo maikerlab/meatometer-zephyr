@@ -8,16 +8,13 @@ target_include_directories(app PRIVATE src)
 
 target_sources(app PRIVATE
     src/main.c
-    src/app/event_handler.c
-    src/app/measure_temp.c
     src/fsm/session_fsm.c
     src/comms/ble_prov.c
     src/comms/wifi_mgr.c
     src/comms/mqtt_mgr.c
-    src/hal/hw_init.c
-    src/hal/button.c
-    src/hal/led.c
-    src/hal/sensor.c
+    src/hal/hal.c
+    src/sensor/dummy.c
+    src/temperature.c
 )
 
 zephyr_library_include_directories($<TARGET_PROPERTY:wifi_prov_core,BINARY_DIR>)

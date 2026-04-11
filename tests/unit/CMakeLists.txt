@@ -13,6 +13,5 @@ target_sources(app PRIVATE
     mocks/hal_mock.c
     mocks/mqtt_mock.c
     ../../src/fsm/session_fsm.c
-    ../../src/app/measure_temp.c
-    # measure_thread.c bewusst NICHT inkludiert — wird gemockt
+    ../../src/temperature.c
 )

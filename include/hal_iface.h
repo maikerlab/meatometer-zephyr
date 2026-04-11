@@ -34,12 +34,6 @@ typedef struct {
    */
   int (*init)(void);
 
-  /** Reads temperaturein °C.
-   * @param out_celsius Pointer to store the read temperature value
-   * @return 0 on success, negative error code on failure
-   */
-  int (*read_temp)(float *out_celsius);
-
   /** Sets the state of a LED.
    * @param id LED identifier
    * @param on true to turn on, false to turn off
@@ -56,7 +50,4 @@ typedef struct {
   void (*led_blink)(led_id_t id, uint32_t period_ms);
   /** Turns off all LEDs. */
   void (*led_all_off)(void);
-
-  /* Registers callback for all button events */
-  void (*btn_register_callback)(btn_callback_t cb);
 } hal_iface_t;

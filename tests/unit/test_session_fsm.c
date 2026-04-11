@@ -1,9 +1,9 @@
-#include "app/measure_temp.h"
 #include "app_events.h"
 #include "fsm/session_fsm.h"
 #include "mocks/hal_mock.h"
 #include "mocks/mqtt_mock.h"
 #include <zephyr/ztest.h>
+#include "temperature.h"
 
 /* ── Hilfsmakros ─────────────────────────────────────────────────────── */
 

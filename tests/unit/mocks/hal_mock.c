@@ -4,7 +4,6 @@
 static float mock_temp = 20.0f;
 static bool mock_leds[LED_COUNT];
 static bool mock_blink[LED_COUNT];
-static btn_callback_t mock_btn_cb;
 
 /* ── Mock-Implementierungen ──────────────────────────────────────────── */
 
@@ -29,16 +28,10 @@ static void mock_led_all_off(void) {
   memset(mock_blink, 0, sizeof(mock_blink));
 }
 
-static void mock_btn_register_callback(btn_callback_t cb) { mock_btn_cb = cb; }
-
-static const hal_iface_t mock_iface = {
-    .init = mock_init,
-    .led_set = mock_led_set,
-    .led_blink = mock_led_blink,
-    .led_all_off = mock_led_all_off,
-    .btn_register_callback = mock_btn_register_callback,
-    .read_temp = mock_read_temp,
-};
+static const hal_iface_t mock_iface = {.init = mock_init,
+                                       .led_set = mock_led_set,
+                                       .led_blink = mock_led_blink,
+                                       .led_all_off = mock_led_all_off};
 
 /* ── Public API ─────────────────────────────────────────────────── */
 
@@ -46,7 +39,6 @@ const hal_iface_t *hal_mock_get_iface(void) { return &mock_iface; }
 
 void hal_mock_reset(void) {
   mock_temp = 20.0f;
-  mock_btn_cb = NULL;
   mock_led_all_off();
 }
 
