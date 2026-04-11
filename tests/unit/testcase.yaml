@@ -1,0 +1,7 @@
+tests:
+  app.unit_tests:
+    platform_allow:
+      - native_sim
+      - nrf7002dk/nrf5340/cpuapp
+    tags: unit_tests
+    harness: ztest

@@ -1,8 +1,18 @@
+# editors
+*.swp
+*~
 .vscode/
 .idea/
 .DS_Store
 .embedder/
 
+# build and test artifacts
+/build*/
 **/twister-out*
+
+# secrets
 .env
 .envrc
+
+# coding agents
+memory/
