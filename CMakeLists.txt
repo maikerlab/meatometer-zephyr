@@ -9,6 +9,7 @@ target_include_directories(app PRIVATE src)
 target_sources(app PRIVATE
     src/main.c
     src/fsm/session_fsm.c
+    src/fsm/conn_fsm.c
     src/comms/ble_prov.c
     src/comms/wifi_mgr.c
     src/comms/mqtt_mgr.c

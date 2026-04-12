@@ -10,8 +10,12 @@ target_include_directories(app PRIVATE
 
 target_sources(app PRIVATE
     test_session_fsm.c
+    test_conn_fsm.c
     mocks/hal_mock.c
     mocks/mqtt_mock.c
+    mocks/network_mock.c
+    mocks/ble_prov_mock.c
     ../../src/fsm/session_fsm.c
+    ../../src/fsm/conn_fsm.c
     ../../src/temperature.c
 )

@@ -3,6 +3,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/net/net_mgmt.h>
+#include <zephyr/net/wifi_credentials.h>
 #include <zephyr/net/wifi_mgmt.h>
 
 LOG_MODULE_REGISTER(wifi_mgr, LOG_LEVEL_DBG);
@@ -20,12 +21,16 @@ static int wifi_mgr_init(void);
 static int wifi_mgr_connect(void);
 static int wifi_mgr_disconnect(void);
 static bool wifi_mgr_is_connected(void);
+static bool wifi_mgr_has_credentials(void);
+static int wifi_mgr_connect_stored(void);
 
 static const network_iface_t net_iface = {
     .init = wifi_mgr_init,
     .connect = wifi_mgr_connect,
     .disconnect = wifi_mgr_disconnect,
     .is_connected = wifi_mgr_is_connected,
+    .has_credentials = wifi_mgr_has_credentials,
+    .connect_stored = wifi_mgr_connect_stored,
 };
 static struct k_msgq *evt_queue;
 static struct net_mgmt_event_callback mgmt_cb;
@@ -196,6 +201,35 @@ static int wifi_mgr_disconnect(void) {
  * Returns true if currently connected and an IP address is available.
  */
 static bool wifi_mgr_is_connected(void) { return connected; }
+
+/**
+ * Checks if stored WiFi credentials exist.
+ * @return true if at least one set of credentials is stored
+ */
+static bool wifi_mgr_has_credentials(void) {
+  return !wifi_credentials_is_empty();
+}
+
+/**
+ * Connects to WiFi using stored credentials (provisioned via BLE).
+ * Non-blocking — result delivered via EVT_WIFI_CONNECTED /
+ * EVT_WIFI_CONNECT_FAILED.
+ * @return 0 on success (connection initiated), negative error code on failure
+ */
+static int wifi_mgr_connect_stored(void) {
+  LOG_INF("Connecting with stored credentials...");
+  struct net_if *wifi_iface = net_if_get_first_wifi();
+  if (!wifi_iface) {
+    LOG_ERR("No Wi-Fi interface available");
+    return -ENODEV;
+  }
+  int err = net_mgmt(NET_REQUEST_WIFI_CONNECT_STORED, wifi_iface, NULL, 0);
+  if (err) {
+    LOG_ERR("Failed to initiate stored-credential connect, err: %d", err);
+    return err;
+  }
+  return 0;
+}
 
 const network_iface_t *wifi_get_iface(struct k_msgq *msgq) {
   evt_queue = msgq;

@@ -9,6 +9,7 @@
 #include "comms/ble_prov.h"
 #include "comms/mqtt_mgr.h"
 #include "comms/wifi_mgr.h"
+#include "fsm/conn_fsm.h"
 #include "fsm/session_fsm.h"
 #include "hal/hal.h"
 #include "sensor/dummy.h"
@@ -49,11 +50,10 @@ int main(void) {
   // Initialize sensors
   temperature_init(sensor, &app_event_queue);
 
-  // Initialize state machine with HAL and network interface
+  // Initialize state machines
   sm_init(hal, mqtt, &app_event_queue);
+  conn_fsm_init(hal, wifi, mqtt, ble_prov);
   sm_run();
-
-  ble_prov->start();
 
   return 0;
 }

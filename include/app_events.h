@@ -17,8 +17,10 @@ typedef enum {
   EVT_WIFI_DISCONNECTED,
   /* Attempt to connect to WiFi AP failed */
   EVT_WIFI_CONNECT_FAILED,
-  /* MQTT is ready (successfully connected to broker) */
-  EVT_MQTT_READY,
+  /* MQTT client is successfully connected to broker */
+  EVT_MQTT_CONNECTED,
+  /* MQTT connection to broker lost */
+  EVT_MQTT_DISCONNECTED,
 } app_event_type_t;
 
 typedef struct {

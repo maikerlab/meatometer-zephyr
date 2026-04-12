@@ -1,5 +1,6 @@
 #include "mqtt_mgr.h"
 #include "app_config.h"
+#include "app_events.h"
 #include <net/mqtt_helper.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -60,6 +61,8 @@ static void on_mqtt_connack(enum mqtt_conn_return_code return_code,
     LOG_INF("Port: %d", CONFIG_MQTT_HELPER_PORT);
     LOG_INF("TLS: %s", IS_ENABLED(CONFIG_MQTT_LIB_TLS) ? "Yes" : "No");
     mqtt_connected = true;
+    app_event_t ready_evt = {.type = EVT_MQTT_CONNECTED};
+    k_msgq_put(evt_queue, &ready_evt, K_NO_WAIT);
   } else {
     LOG_WRN("Connection to broker not established, return_code: %d",
             return_code);
@@ -91,6 +94,8 @@ static void on_mqtt_publish(struct mqtt_helper_buf topic,
 static void on_mqtt_disconnect(int result) {
   mqtt_connected = false;
   LOG_INF("MQTT client disconnected: %d", result);
+  app_event_t disc_evt = {.type = EVT_MQTT_DISCONNECTED};
+  k_msgq_put(evt_queue, &disc_evt, K_NO_WAIT);
 }
 
 static int mqtt_mgr_init(void) {

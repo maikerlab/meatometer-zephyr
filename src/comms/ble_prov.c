@@ -310,9 +310,6 @@ static int ble_prov_start(void) {
   k_work_schedule_for_queue(&adv_daemon_work_q, &update_adv_data_work,
                             K_SECONDS(ADV_DATA_UPDATE_INTERVAL));
 
-  /* 5. Apply stored Wi-Fi credentials */
-  net_mgmt(NET_REQUEST_WIFI_CONNECT_STORED, iface, NULL, 0);
-
   return 0;
 }
 
