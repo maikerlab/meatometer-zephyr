@@ -20,7 +20,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(main);
+LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
 /* size of stack area used by each thread */
 #define TH_STACKSIZE         1024
@@ -53,6 +53,9 @@ int main(void)
 	// Register dummy sensors - TODO: replace with real sensors if interface is implemented
 	sensor_registry_register(0, sensor_dummy_get_iface());
 	sensor_registry_register(1, sensor_dummy_get_iface());
+	sensor_registry_register(2, sensor_dummy_get_iface());
+	uint8_t discovered_mask = sensor_registry_scan();
+	(void)discovered_mask;
 
 	// Initialize temperature measurement thread
 	temperature_init(&app_event_queue);

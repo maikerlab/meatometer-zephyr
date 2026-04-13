@@ -29,12 +29,12 @@ A smart multi-probe meat thermometer built on the Nordic Semiconductor nRF7002 D
 - [x] MQTT broker connection and basic temperature publishing
 - [x] Button 2 triggers re-provisioning
 - [x] Event dispatcher connecting both FSMs
-- [ ] Per-sensor MQTT topic publishing
+- [x] Per-sensor MQTT topic publishing
 - [ ] Offline buffering with chronological replay on reconnect
 - [ ] MQTT subscription for target temperature control
 - [ ] MQTT Last Will and Testament
 - [ ] Session state publishing via MQTT
-- [ ] Home Assistant MQTT auto-discovery
+- [x] Home Assistant MQTT auto-discovery
 
 ## Hardware
 

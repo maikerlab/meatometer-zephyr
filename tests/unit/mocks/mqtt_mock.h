@@ -6,3 +6,4 @@ bool mqtt_mock_is_initialized(void);
 bool mqtt_mock_is_connected(void);
 float mqtt_mock_last_published_temp(void);
 uint8_t mqtt_mock_last_published_sensor_slot(void);
+uint8_t mqtt_mock_last_discovery_mask(void);

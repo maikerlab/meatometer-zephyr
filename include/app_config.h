@@ -5,6 +5,8 @@
 #define APP_MEASURE_INTERVAL_MS   1000
 #define APP_EVENT_QUEUE_DEPTH     16
 
-#define MQTT_TOPIC_TEMP "sensors/temperature/77"
-#define MQTT_TOPIC_DONE "temperature/alert"
-#define MQTT_CLIENT_ID  "meatometer-01"
+#define MQTT_CLIENT_ID        "meatometer-01"
+#define MQTT_STATE_TOPIC_FMT  "meatometer/sensor/%u/temperature"
+#define MQTT_AVAIL_TOPIC      "meatometer/status"
+#define MQTT_DISCOVERY_PREFIX "homeassistant"
+#define MQTT_HA_STATUS_TOPIC  "homeassistant/status"

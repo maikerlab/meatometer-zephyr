@@ -30,4 +30,10 @@ typedef struct {
 	 * @return 0 on success, negative error code on failure
 	 */
 	int (*publish_temperature)(uint8_t sensor_slot, float temp_celsius);
+	/** Publish HA MQTT discovery configs for sensors in the given bitmask.
+	 *  Also publishes "online" to the availability topic.
+	 * @param sensor_mask Bitmask of sensor slots to advertise (bit 0 = slot 0)
+	 * @return 0 on success, negative error code on failure
+	 */
+	int (*publish_discovery)(uint8_t sensor_mask);
 } mqtt_iface_t;
