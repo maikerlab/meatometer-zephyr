@@ -26,7 +26,6 @@ static struct k_msgq *evt_queue;
  */
 static void on_button_pressed(btn_id_t btn)
 {
-	LOG_DBG("Button pressed: %d", btn);
 	const app_event_t evt_map[BTN_COUNT] = {
 		[BTN_MEASURE] = {.type = EVT_BTN_MEASURE},
 		[BTN_RECONNECT_WIFI] = {.type = EVT_BTN_RECONNECT_WIFI},
@@ -38,7 +37,6 @@ static void on_button_pressed(btn_id_t btn)
 static void gpio_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {
 	/* Check which button triggered the interrupt */
-	LOG_DBG("GPIO ISR triggered: pins=0x%08x", pins);
 	for (btn_id_t i = 0; i < BTN_COUNT; i++) {
 		if (cb == &gpio_cb_data[i]) {
 			on_button_pressed(i);

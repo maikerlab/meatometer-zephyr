@@ -35,12 +35,21 @@ static int mock_publish_temperature(uint8_t sensor_slot, float temp_celsius)
 	return 0;
 }
 
+static uint8_t last_discovery_mask;
+
+static int mock_publish_discovery(uint8_t sensor_mask)
+{
+	last_discovery_mask = sensor_mask;
+	return 0;
+}
+
 static const mqtt_iface_t mock_iface = {
 	.init = mock_init,
 	.connect = mock_connect,
 	.is_connected = mock_is_connected,
 	.disconnect = mock_disconnect,
 	.publish_temperature = mock_publish_temperature,
+	.publish_discovery = mock_publish_discovery,
 };
 
 /* ── Public API ─────────────────────────────────────────────────── */
@@ -54,6 +63,7 @@ void mqtt_mock_reset(void)
 {
 	last_published_sensor_slot = 0;
 	last_published_temp = 0.0f;
+	last_discovery_mask = 0;
 	mock_initialized = false;
 	mock_connected = false;
 }
@@ -72,4 +82,8 @@ float mqtt_mock_last_published_temp(void)
 uint8_t mqtt_mock_last_published_sensor_slot(void)
 {
 	return last_published_sensor_slot;
+}
+uint8_t mqtt_mock_last_discovery_mask(void)
+{
+	return last_discovery_mask;
 }

@@ -2,46 +2,25 @@
 #include "app_config.h"
 #include "app_events.h"
 #include <net/mqtt_helper.h>
+#include <string.h>
+#include <zephyr/app_version.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-#define CONFIG_MQTT_SAMPLE_PUB_TOPIC "sensors/temperature/77"
-#define CONFIG_MQTT_SAMPLE_SUB_TOPIC "sensors/temperature/+"
 static struct k_msgq *evt_queue;
 static bool mqtt_connected;
+static uint8_t discovered_mask;
 
 LOG_MODULE_REGISTER(mqtt_mgr, LOG_LEVEL_DBG);
 
 /* Forward declarations */
 
-/**
- * Initializes the MQTT manager.
- * Must be called before mqtt_mgr_connect().
- * @param event_queue Pointer to the app event message queue.
- */
 static int mqtt_mgr_init(void);
-/**
- * Connects to the MQTT broker configured in app_config.h.
- * Blocks until CONNACK is received or timeout expires.
- * On success, starts a background polling thread for keep-alive.
- * @return 0 on success, negative errno on failure.
- */
 static int mqtt_mgr_connect(void);
-/**
- * Disconnects from the MQTT broker and stops the polling thread.
- * @return 0 on success, negative errno on failure.
- */
 static int mqtt_mgr_disconnect(void);
-/**
- * Returns true if currently connected to the MQTT broker.
- */
 static bool mqtt_mgr_is_connected(void);
-/**
- * Publishes a temperature value to the configured MQTT topic.
- * @param temp_celsius Temperature in degrees Celsius.
- * @return 0 on success, negative errno on failure.
- */
 static int mqtt_mgr_publish_temperature(uint8_t sensor_slot, float temp_celsius);
+static int mqtt_mgr_publish_discovery(uint8_t sensor_mask);
 
 static const mqtt_iface_t mqtt_iface = {
 	.init = mqtt_mgr_init,
@@ -49,9 +28,97 @@ static const mqtt_iface_t mqtt_iface = {
 	.is_connected = mqtt_mgr_is_connected,
 	.disconnect = mqtt_mgr_disconnect,
 	.publish_temperature = mqtt_mgr_publish_temperature,
+	.publish_discovery = mqtt_mgr_publish_discovery,
 };
 
-// Callback functions
+/* ── HA discovery helpers ─────────────────────────────────────────────── */
+
+static int publish_retained(const char *topic, const uint8_t *data, size_t len)
+{
+	struct mqtt_publish_param param = {
+		.message.payload.data = (uint8_t *)data,
+		.message.payload.len = len,
+		.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE,
+		.message.topic.topic.utf8 = (uint8_t *)topic,
+		.message.topic.topic.size = strlen(topic),
+		.message_id = mqtt_helper_msg_id_get(),
+		.retain_flag = 1,
+	};
+	return mqtt_helper_publish(&param);
+}
+
+static int publish_availability(const char *status)
+{
+	return publish_retained(MQTT_AVAIL_TOPIC, (const uint8_t *)status, strlen(status));
+}
+
+static int publish_ha_config(uint8_t slot, bool first)
+{
+	char topic[64];
+	snprintk(topic, sizeof(topic), MQTT_DISCOVERY_PREFIX "/sensor/meatometer_temp_%02u/config",
+		 slot + 1);
+
+	char payload[512];
+	int len;
+
+	if (first) {
+		len = snprintk(payload, sizeof(payload),
+			       "{\"name\":\"Probe %u\","
+			       "\"stat_t\":\"" MQTT_STATE_TOPIC_FMT "\","
+			       "\"unit_of_meas\":\"\\u00b0C\","
+			       "\"dev_cla\":\"temperature\","
+			       "\"stat_cla\":\"measurement\","
+			       "\"uniq_id\":\"meatometer_temp_%02u\","
+			       "\"avty_t\":\"" MQTT_AVAIL_TOPIC "\","
+			       "\"pl_avail\":\"online\","
+			       "\"pl_not_avail\":\"offline\","
+			       "\"dev\":{\"ids\":[\"" MQTT_CLIENT_ID "\"],"
+			       "\"name\":\"Meatometer\","
+			       "\"mf\":\"Custom\","
+			       "\"mdl\":\"Grill Thermometer\","
+			       "\"sw\":\"%s\"}}",
+			       slot + 1, slot, slot + 1, APP_VERSION_STRING);
+	} else {
+		len = snprintk(payload, sizeof(payload),
+			       "{\"name\":\"Probe %u\","
+			       "\"stat_t\":\"" MQTT_STATE_TOPIC_FMT "\","
+			       "\"unit_of_meas\":\"\\u00b0C\","
+			       "\"dev_cla\":\"temperature\","
+			       "\"stat_cla\":\"measurement\","
+			       "\"uniq_id\":\"meatometer_temp_%02u\","
+			       "\"avty_t\":\"" MQTT_AVAIL_TOPIC "\","
+			       "\"pl_avail\":\"online\","
+			       "\"pl_not_avail\":\"offline\","
+			       "\"dev\":{\"ids\":[\"" MQTT_CLIENT_ID "\"]}}",
+			       slot + 1, slot, slot + 1);
+	}
+
+	LOG_INF("Publishing HA discovery for slot %u", slot);
+	return publish_retained(topic, (const uint8_t *)payload, len);
+}
+
+static void subscribe_ha_status(void)
+{
+	static struct mqtt_topic ha_topic = {
+		.topic.utf8 = MQTT_HA_STATUS_TOPIC,
+		.topic.size = sizeof(MQTT_HA_STATUS_TOPIC) - 1,
+		.qos = MQTT_QOS_1_AT_LEAST_ONCE,
+	};
+	struct mqtt_subscription_list sub_list = {
+		.list = &ha_topic,
+		.list_count = 1,
+		.message_id = mqtt_helper_msg_id_get(),
+	};
+	int err = mqtt_helper_subscribe(&sub_list);
+	if (err) {
+		LOG_WRN("Failed to subscribe to %s: %d", MQTT_HA_STATUS_TOPIC, err);
+	} else {
+		LOG_INF("Subscribed to %s", MQTT_HA_STATUS_TOPIC);
+	}
+}
+
+/* ── Callback functions ──────────────────────────────────────────────── */
+
 static void on_mqtt_connack(enum mqtt_conn_return_code return_code, bool session_present)
 {
 	if (return_code == MQTT_CONNECTION_ACCEPTED) {
@@ -61,24 +128,21 @@ static void on_mqtt_connack(enum mqtt_conn_return_code return_code, bool session
 		LOG_INF("Port: %d", CONFIG_MQTT_HELPER_PORT);
 		LOG_INF("TLS: %s", IS_ENABLED(CONFIG_MQTT_LIB_TLS) ? "Yes" : "No");
 		mqtt_connected = true;
+
+		subscribe_ha_status();
+
 		app_event_t ready_evt = {.type = EVT_MQTT_CONNECTED};
 		k_msgq_put(evt_queue, &ready_evt, K_NO_WAIT);
 	} else {
 		LOG_WRN("Connection to broker not established, return_code: %d", return_code);
 		mqtt_connected = false;
 	}
-
-	ARG_UNUSED(return_code);
 }
+
 static void on_mqtt_suback(uint16_t message_id, int result)
 {
 	if (result != MQTT_SUBACK_FAILURE) {
-		if (message_id == 1234) {
-			LOG_INF("Subscribed to %s with QoS %d", CONFIG_MQTT_SAMPLE_SUB_TOPIC,
-				result);
-			return;
-		}
-		LOG_WRN("Subscribed to unknown topic, id: %d with QoS %d", message_id, result);
+		LOG_INF("Subscription acknowledged, id: %d, QoS: %d", message_id, result);
 		return;
 	}
 	LOG_ERR("Topic subscription failed, error: %d", result);
@@ -88,6 +152,13 @@ static void on_mqtt_publish(struct mqtt_helper_buf topic, struct mqtt_helper_buf
 {
 	LOG_INF("Received payload: %.*s on topic: %.*s", payload.size, payload.ptr, topic.size,
 		topic.ptr);
+
+	if (topic.size == (sizeof(MQTT_HA_STATUS_TOPIC) - 1) &&
+	    memcmp(topic.ptr, MQTT_HA_STATUS_TOPIC, topic.size) == 0 && payload.size >= 6 &&
+	    memcmp(payload.ptr, "online", 6) == 0 && discovered_mask != 0) {
+		LOG_INF("Home Assistant restarted, re-publishing discovery");
+		mqtt_mgr_publish_discovery(discovered_mask);
+	}
 }
 
 static void on_mqtt_disconnect(int result)
@@ -144,7 +215,14 @@ static int mqtt_mgr_connect(void)
 
 static int mqtt_mgr_disconnect(void)
 {
-	int ret = mqtt_helper_disconnect();
+	int ret;
+	ret = publish_availability("offline");
+	if (ret != 0) {
+		LOG_ERR("Failed to publish availability: %d", ret);
+		return -1;
+	}
+
+	ret = mqtt_helper_disconnect();
 	if (ret != 0) {
 		LOG_ERR("Failed to disconnect from MQTT, error code: %d", ret);
 		return -1;
@@ -163,18 +241,17 @@ static int mqtt_mgr_publish_temperature(uint8_t sensor_slot, float temp_celsius)
 	char payload[8];
 	snprintk(payload, sizeof(payload), "%.1f", (double)temp_celsius);
 
-	char topic[32];
-	snprintk(topic, sizeof(topic), "sensor/%u/temperature", sensor_slot);
+	char topic[48];
+	snprintk(topic, sizeof(topic), MQTT_STATE_TOPIC_FMT, sensor_slot);
 
-	struct mqtt_publish_param mqtt_param;
-	mqtt_param.message.payload.data = (uint8_t *)payload;
-	mqtt_param.message.payload.len = strlen(payload);
-	mqtt_param.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
-	mqtt_param.message_id = mqtt_helper_msg_id_get(),
-	mqtt_param.message.topic.topic.utf8 = (uint8_t *)topic;
-	mqtt_param.message.topic.topic.size = strlen(topic);
-	mqtt_param.dup_flag = 0;
-	mqtt_param.retain_flag = 0;
+	struct mqtt_publish_param mqtt_param = {
+		.message.payload.data = (uint8_t *)payload,
+		.message.payload.len = strlen(payload),
+		.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE,
+		.message.topic.topic.utf8 = (uint8_t *)topic,
+		.message.topic.topic.size = strlen(topic),
+		.message_id = mqtt_helper_msg_id_get(),
+	};
 
 	int err = mqtt_helper_publish(&mqtt_param);
 	if (err) {
@@ -186,6 +263,40 @@ static int mqtt_mgr_publish_temperature(uint8_t sensor_slot, float temp_celsius)
 		mqtt_param.message.payload.len, mqtt_param.message.payload.data,
 		mqtt_param.message.topic.topic.size, mqtt_param.message.topic.topic.utf8);
 
+	return 0;
+}
+
+static int mqtt_mgr_publish_discovery(uint8_t sensor_mask)
+{
+	if (!mqtt_connected) {
+		LOG_WRN("MQTT not connected - skipping discovery publish");
+		return -ENOTCONN;
+	}
+	LOG_DBG("Publishing HA discovery for sensor mask 0x%02x", sensor_mask);
+
+	bool first = true;
+
+	for (uint8_t i = 0; i < SENSOR_MAX_COUNT; i++) {
+		if (!(sensor_mask & (1U << i))) {
+			continue;
+		}
+		int err = publish_ha_config(i, first);
+		if (err) {
+			LOG_ERR("Failed to publish HA config for slot %u: %d", i, err);
+			return err;
+		}
+		first = false;
+	}
+
+	discovered_mask = sensor_mask;
+
+	int err = publish_availability("online");
+	if (err) {
+		LOG_ERR("Failed to publish availability: %d", err);
+		return err;
+	}
+
+	LOG_INF("Published HA discovery for mask 0x%02x", sensor_mask);
 	return 0;
 }
 

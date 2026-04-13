@@ -10,6 +10,7 @@
 #include "hal_iface.h"
 #include "mqtt_iface.h"
 #include "network_iface.h"
+#include "sensor/sensor_registry.h"
 #include <stdatomic.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -207,6 +208,11 @@ static void state_online_entry(void *o)
 	c->hal->led_set(LED_STATUS, true);
 	c->ble_prov->stop();
 	atomic_store(&online_flag, 1);
+
+	uint8_t mask = sensor_registry_get_connected_mask();
+	if (mask != 0) {
+		c->mqtt->publish_discovery(mask);
+	}
 }
 
 static enum smf_state_result state_online_run(void *o)
