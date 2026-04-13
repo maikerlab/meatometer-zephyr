@@ -3,6 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - ".claude/commands/**"
+      - "docs/**"
+      - "hooks/**"
+      - "*.md"
+      - ".gitignore"
+      - "Taskfile.yml"
   pull_request:
     branches: [main]
 
