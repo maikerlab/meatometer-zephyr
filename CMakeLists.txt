@@ -10,6 +10,7 @@ target_sources(app PRIVATE
     src/main.c
     src/fsm/session_fsm.c
     src/fsm/conn_fsm.c
+    src/fsm/dispatcher.c
     src/comms/ble_prov.c
     src/comms/wifi_mgr.c
     src/comms/mqtt_mgr.c

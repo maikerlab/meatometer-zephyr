@@ -10,6 +10,7 @@
 #include "comms/mqtt_mgr.h"
 #include "comms/wifi_mgr.h"
 #include "fsm/conn_fsm.h"
+#include "fsm/dispatcher.h"
 #include "fsm/session_fsm.h"
 #include "hal/hal.h"
 #include "sensor/dummy.h"
@@ -51,9 +52,11 @@ int main(void) {
   temperature_init(sensor, &app_event_queue);
 
   // Initialize state machines
-  sm_init(hal, mqtt, &app_event_queue);
+  session_fsm_init(hal, mqtt, &app_event_queue);
   conn_fsm_init(hal, wifi, mqtt, ble_prov);
-  sm_run();
+
+  dispatcher_init(&app_event_queue);
+  dispatcher_run();
 
   return 0;
 }
