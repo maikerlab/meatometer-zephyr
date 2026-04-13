@@ -41,7 +41,7 @@ static bool mqtt_mgr_is_connected(void);
  * @param temp_celsius Temperature in degrees Celsius.
  * @return 0 on success, negative errno on failure.
  */
-static int mqtt_mgr_publish_temperature(float temp_celsius);
+static int mqtt_mgr_publish_temperature(uint8_t sensor_slot, float temp_celsius);
 
 static const mqtt_iface_t mqtt_iface = {
 	.init = mqtt_mgr_init,
@@ -153,25 +153,26 @@ static int mqtt_mgr_disconnect(void)
 	return 0;
 }
 
-static int mqtt_mgr_publish_temperature(float temp_celsius)
+static int mqtt_mgr_publish_temperature(uint8_t sensor_slot, float temp_celsius)
 {
 	if (!mqtt_connected) {
 		LOG_WRN("MQTT not connected - skipping publish!");
 		return -ENOTCONN;
 	}
 
-	LOG_INF("Publishing temperature: %.1f °C", temp_celsius);
+	char payload[8];
+	snprintk(payload, sizeof(payload), "%.1f", (double)temp_celsius);
 
-	char payload[32];
-	snprintk(payload, sizeof(payload), "%.1f", temp_celsius);
+	char topic[32];
+	snprintk(topic, sizeof(topic), "sensor/%u/temperature", sensor_slot);
 
 	struct mqtt_publish_param mqtt_param;
 	mqtt_param.message.payload.data = (uint8_t *)payload;
 	mqtt_param.message.payload.len = strlen(payload);
 	mqtt_param.message.topic.qos = MQTT_QOS_1_AT_LEAST_ONCE;
 	mqtt_param.message_id = mqtt_helper_msg_id_get(),
-	mqtt_param.message.topic.topic.utf8 = CONFIG_MQTT_SAMPLE_PUB_TOPIC;
-	mqtt_param.message.topic.topic.size = strlen(CONFIG_MQTT_SAMPLE_PUB_TOPIC);
+	mqtt_param.message.topic.topic.utf8 = (uint8_t *)topic;
+	mqtt_param.message.topic.topic.size = strlen(topic);
 	mqtt_param.dup_flag = 0;
 	mqtt_param.retain_flag = 0;
 
@@ -181,9 +182,9 @@ static int mqtt_mgr_publish_temperature(float temp_celsius)
 		return err;
 	}
 
-	LOG_INF("Published message: \"%.*s\" on topic: \"%.*s\"", mqtt_param.message.payload.len,
-		mqtt_param.message.payload.data, mqtt_param.message.topic.topic.size,
-		mqtt_param.message.topic.topic.utf8);
+	LOG_INF("Published temperature: \"%.*s\" on topic: \"%.*s\"",
+		mqtt_param.message.payload.len, mqtt_param.message.payload.data,
+		mqtt_param.message.topic.topic.size, mqtt_param.message.topic.topic.utf8);
 
 	return 0;
 }

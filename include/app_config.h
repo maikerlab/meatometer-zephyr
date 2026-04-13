@@ -1,5 +1,6 @@
 #pragma once
 
+#define SENSOR_MAX_COUNT          4
 #define APP_TARGET_TEMP_DEFAULT_C 65.0f
 #define APP_MEASURE_INTERVAL_MS   1000
 #define APP_EVENT_QUEUE_DEPTH     16

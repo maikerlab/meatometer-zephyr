@@ -11,7 +11,7 @@ A smart multi-probe meat thermometer built on the Nordic Semiconductor nRF7002 D
 - [x] Session FSM with IDLE / MEASURING / ALERT states
 - [x] Button 1 toggles measurement session
 - [ ] Up to 4 temperature sensors via MAX31855 SPI (currently using dummy sensor)
-- [ ] Automatic sensor detection at session start
+- [x] Automatic sensor detection at session start
 - [x] 5-second polling interval during sessions
 - [ ] Local ring buffer for offline reading storage (10 min capacity)
 
