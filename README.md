@@ -1,5 +1,7 @@
 # Meatometer
 
+[![CI](https://github.com/maikerlab/meatometer-zephyr/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/maikerlab/meatometer-zephyr/actions/workflows/ci.yml)
+
 It's grilling season! Put the sensors of your Meatometer into your lovely steak to get it done EXACTLY how you want it to be.
 
 ## User Story
