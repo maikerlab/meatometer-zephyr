@@ -3,6 +3,7 @@
 static bool mock_initialized = false;
 static bool mock_connected = false;
 static float last_published_temp = 0.0f;
+static uint8_t last_published_sensor_slot = 0;
 
 static int mock_init(void)
 {
@@ -27,8 +28,9 @@ static int mock_disconnect(void)
 	return 0;
 }
 
-static int mock_publish_temperature(float temp_celsius)
+static int mock_publish_temperature(uint8_t sensor_slot, float temp_celsius)
 {
+	last_published_sensor_slot = sensor_slot;
 	last_published_temp = temp_celsius;
 	return 0;
 }
@@ -50,6 +52,7 @@ const mqtt_iface_t *mqtt_mock_get_iface(void)
 
 void mqtt_mock_reset(void)
 {
+	last_published_sensor_slot = 0;
 	last_published_temp = 0.0f;
 	mock_initialized = false;
 	mock_connected = false;
@@ -65,4 +68,8 @@ bool mqtt_mock_is_connected(void)
 float mqtt_mock_last_published_temp(void)
 {
 	return last_published_temp;
+}
+uint8_t mqtt_mock_last_published_sensor_slot(void)
+{
+	return last_published_sensor_slot;
 }

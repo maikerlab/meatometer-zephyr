@@ -174,7 +174,7 @@ static enum smf_state_result state_measuring_run(void *o)
 		/* Temperature update */
 		uint8_t slot = c->current_event.data.temp.sensor_slot;
 		float temp = c->current_event.data.temp.temperature;
-		LOG_DBG("Received temperature update: slot %u = %.1f °C", slot, temp);
+		LOG_DBG("Received temperature update: slot %u = %.1f °C", slot, (double)temp);
 		c->mqtt->publish_temperature(slot, temp);
 		if (temp >= c->target_temp) {
 			/* Target temperature reached → DONE */
