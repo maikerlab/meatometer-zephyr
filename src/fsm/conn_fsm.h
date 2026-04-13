@@ -21,8 +21,8 @@
  * @param mqtt Pointer to MQTT interface
  * @param ble_prov Pointer to BLE provisioning interface
  */
-void conn_fsm_init(const hal_iface_t *hal, const network_iface_t *wifi,
-                   const mqtt_iface_t *mqtt, const ble_prov_iface_t *ble_prov);
+void conn_fsm_init(const hal_iface_t *hal, const network_iface_t *wifi, const mqtt_iface_t *mqtt,
+		   const ble_prov_iface_t *ble_prov);
 
 /** Handle an event synchronously.
  * @param evt Pointer to the event to handle

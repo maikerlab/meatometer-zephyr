@@ -89,3 +89,6 @@ Follow [Zephyr coding guidelines](https://docs.zephyrproject.org/latest/contribu
 - Devicetree overlays in `boards/`, never edit SDK `.dts` files
 - Kconfig in `prj.conf`, board-specific overrides in `boards/<board>.conf`
 - Sysbuild config in `sysbuild.conf`, per-image overrides in `sysbuild/`
+- All edited `.c` and `.h` files must be formatted with `clang-format` before committing
+- The project uses the Zephyr upstream `.clang-format` config in the repository root
+- A pre-commit hook enforces formatting; set up with: `git config core.hooksPath hooks`

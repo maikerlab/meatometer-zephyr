@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Pre-commit hook: check clang-format on staged .c and .h files
+
+CLANG_FORMAT="${CLANG_FORMAT:-clang-format}"
+
+if ! command -v "$CLANG_FORMAT" &>/dev/null; then
+	echo "error: clang-format not found. Install it or set CLANG_FORMAT env var."
+	exit 1
+fi
+
+# Get staged .c and .h files (added, copied, modified — not deleted)
+files=$(git diff --cached --name-only --diff-filter=ACM -- '*.c' '*.h')
+
+if [ -z "$files" ]; then
+	exit 0
+fi
+
+failed=0
+for f in $files; do
+	if ! "$CLANG_FORMAT" --dry-run --Werror "$f" 2>/dev/null; then
+		echo "clang-format: $f needs formatting"
+		failed=1
+	fi
+done
+
+if [ "$failed" -ne 0 ]; then
+	echo ""
+	echo "Pre-commit check failed. Run: clang-format -i <file> to fix."
+	exit 1
+fi

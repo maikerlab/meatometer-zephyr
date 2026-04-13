@@ -89,11 +89,11 @@ static bool started;
  *   +2  (FLAGS MSB)            Reserved
  *   +3  (RSSI)                 WiFi RSSI (signed int8); INT8_MIN if offline
  */
-#define ADV_DATA_VERSION_IDX (BT_UUID_SIZE_128 + 0)
-#define ADV_DATA_FLAG_IDX (BT_UUID_SIZE_128 + 1)
+#define ADV_DATA_VERSION_IDX          (BT_UUID_SIZE_128 + 0)
+#define ADV_DATA_FLAG_IDX             (BT_UUID_SIZE_128 + 1)
 #define ADV_DATA_FLAG_PROV_STATUS_BIT BIT(0)
 #define ADV_DATA_FLAG_CONN_STATUS_BIT BIT(1)
-#define ADV_DATA_RSSI_IDX (BT_UUID_SIZE_128 + 3)
+#define ADV_DATA_RSSI_IDX             (BT_UUID_SIZE_128 + 3)
 
 /* ── Advertising parameters ──────────────────────────────────────────
  *
@@ -102,13 +102,12 @@ static bool started;
  * SLOW: ~1 s interval — used after provisioning to reduce power consumption
  *       while still allowing re-provisioning if needed.
  */
-#define PROV_BT_LE_ADV_PARAM_FAST                                              \
-  BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MIN_2,               \
-                  BT_GAP_ADV_FAST_INT_MAX_2, NULL)
+#define PROV_BT_LE_ADV_PARAM_FAST                                                                  \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_FAST_INT_MIN_2, BT_GAP_ADV_FAST_INT_MAX_2,  \
+			NULL)
 
-#define PROV_BT_LE_ADV_PARAM_SLOW                                              \
-  BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_SLOW_INT_MIN,                 \
-                  BT_GAP_ADV_SLOW_INT_MAX, NULL)
+#define PROV_BT_LE_ADV_PARAM_SLOW                                                                  \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, BT_GAP_ADV_SLOW_INT_MIN, BT_GAP_ADV_SLOW_INT_MAX, NULL)
 
 /* ── Daemon work queue ───────────────────────────────────────────────
  *
@@ -118,7 +117,7 @@ static bool started;
  *                             interval after a BLE disconnect
  */
 #define ADV_DAEMON_STACK_SIZE 4096
-#define ADV_DAEMON_PRIORITY 5
+#define ADV_DAEMON_PRIORITY   5
 
 K_THREAD_STACK_DEFINE(adv_daemon_stack_area, ADV_DAEMON_STACK_SIZE);
 static struct k_work_q adv_daemon_work_q;
@@ -147,13 +146,13 @@ static uint8_t prov_svc_data[] = {BT_UUID_PROV_VAL, 0x00, 0x00, 0x00, 0x00};
 static uint8_t device_name[] = {'P', 'V', '0', '0', '0', '0', '0', '0'};
 
 static const struct bt_data ad[] = {
-    BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-    BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_PROV_VAL),
-    BT_DATA(BT_DATA_NAME_COMPLETE, device_name, sizeof(device_name)),
+	BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+	BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_PROV_VAL),
+	BT_DATA(BT_DATA_NAME_COMPLETE, device_name, sizeof(device_name)),
 };
 
 static const struct bt_data sd[] = {
-    BT_DATA(BT_DATA_SVC_DATA128, prov_svc_data, sizeof(prov_svc_data)),
+	BT_DATA(BT_DATA_SVC_DATA128, prov_svc_data, sizeof(prov_svc_data)),
 };
 
 /* ── Scan-response data refresh ──────────────────────────────────────
@@ -166,29 +165,30 @@ static const struct bt_data sd[] = {
  * Called periodically by update_adv_data_task() and once at startup
  * before the first bt_le_adv_start().
  */
-static void update_wifi_status_in_adv(void) {
-  prov_svc_data[ADV_DATA_VERSION_IDX] = PROV_SVC_VER;
+static void update_wifi_status_in_adv(void)
+{
+	prov_svc_data[ADV_DATA_VERSION_IDX] = PROV_SVC_VER;
 
-  /* Bit 0: provisioning status — set if wifi_prov_core has stored creds */
-  if (!wifi_prov_state_get()) {
-    prov_svc_data[ADV_DATA_FLAG_IDX] &= ~ADV_DATA_FLAG_PROV_STATUS_BIT;
-  } else {
-    prov_svc_data[ADV_DATA_FLAG_IDX] |= ADV_DATA_FLAG_PROV_STATUS_BIT;
-  }
+	/* Bit 0: provisioning status — set if wifi_prov_core has stored creds */
+	if (!wifi_prov_state_get()) {
+		prov_svc_data[ADV_DATA_FLAG_IDX] &= ~ADV_DATA_FLAG_PROV_STATUS_BIT;
+	} else {
+		prov_svc_data[ADV_DATA_FLAG_IDX] |= ADV_DATA_FLAG_PROV_STATUS_BIT;
+	}
 
-  /* Bit 1: WiFi connection status + RSSI from the WiFi driver */
-  struct net_if *iface = net_if_get_first_wifi();
-  struct wifi_iface_status status = {0};
+	/* Bit 1: WiFi connection status + RSSI from the WiFi driver */
+	struct net_if *iface = net_if_get_first_wifi();
+	struct wifi_iface_status status = {0};
 
-  int err = net_mgmt(NET_REQUEST_WIFI_IFACE_STATUS, iface, &status,
-                     sizeof(struct wifi_iface_status));
-  if ((err != 0) || (status.state < WIFI_STATE_ASSOCIATED)) {
-    prov_svc_data[ADV_DATA_FLAG_IDX] &= ~ADV_DATA_FLAG_CONN_STATUS_BIT;
-    prov_svc_data[ADV_DATA_RSSI_IDX] = INT8_MIN;
-  } else {
-    prov_svc_data[ADV_DATA_FLAG_IDX] |= ADV_DATA_FLAG_CONN_STATUS_BIT;
-    prov_svc_data[ADV_DATA_RSSI_IDX] = status.rssi;
-  }
+	int err = net_mgmt(NET_REQUEST_WIFI_IFACE_STATUS, iface, &status,
+			   sizeof(struct wifi_iface_status));
+	if ((err != 0) || (status.state < WIFI_STATE_ASSOCIATED)) {
+		prov_svc_data[ADV_DATA_FLAG_IDX] &= ~ADV_DATA_FLAG_CONN_STATUS_BIT;
+		prov_svc_data[ADV_DATA_RSSI_IDX] = INT8_MIN;
+	} else {
+		prov_svc_data[ADV_DATA_FLAG_IDX] |= ADV_DATA_FLAG_CONN_STATUS_BIT;
+		prov_svc_data[ADV_DATA_RSSI_IDX] = status.rssi;
+	}
 }
 
 /* ── BLE connection callbacks ────────────────────────────────────────
@@ -202,19 +202,20 @@ static void update_wifi_status_in_adv(void) {
  * Cancels the periodic scan-response update because a connected client
  * can read status directly via the GATT Information characteristic.
  */
-static void connected(struct bt_conn *conn, uint8_t err) {
-  char addr[BT_ADDR_LE_STR_LEN];
+static void connected(struct bt_conn *conn, uint8_t err)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
 
-  if (err) {
-    LOG_ERR("BT Connection failed (err 0x%02x)", err);
-    return;
-  }
+	if (err) {
+		LOG_ERR("BT Connection failed (err 0x%02x)", err);
+		return;
+	}
 
-  bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-  LOG_INF("BT Connected: %s", addr);
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	LOG_INF("BT Connected: %s", addr);
 
-  /* No need to update scan-response while a client is connected */
-  k_work_cancel_delayable(&update_adv_data_work);
+	/* No need to update scan-response while a client is connected */
+	k_work_cancel_delayable(&update_adv_data_work);
 }
 
 /**
@@ -224,55 +225,56 @@ static void connected(struct bt_conn *conn, uint8_t err) {
  *     fast/slow interval (after a 1 s delay to let the stack settle)
  *   - update_adv_data_work: immediately refreshes scan-response data
  */
-static void disconnected(struct bt_conn *conn, uint8_t reason) {
-  char addr[BT_ADDR_LE_STR_LEN];
+static void disconnected(struct bt_conn *conn, uint8_t reason)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
 
-  bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-  LOG_INF("BT Disconnected: %s (reason 0x%02x)", addr, reason);
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	LOG_INF("BT Disconnected: %s (reason 0x%02x)", addr, reason);
 
-  if (!started) {
-    return;
-  }
+	if (!started) {
+		return;
+	}
 
-  k_work_reschedule_for_queue(&adv_daemon_work_q, &update_adv_param_work,
-                              K_SECONDS(ADV_PARAM_UPDATE_DELAY));
-  k_work_reschedule_for_queue(&adv_daemon_work_q, &update_adv_data_work,
-                              K_NO_WAIT);
+	k_work_reschedule_for_queue(&adv_daemon_work_q, &update_adv_param_work,
+				    K_SECONDS(ADV_PARAM_UPDATE_DELAY));
+	k_work_reschedule_for_queue(&adv_daemon_work_q, &update_adv_data_work, K_NO_WAIT);
 }
 
 /** Logged when a peer's resolvable private address is matched to an identity.
  */
 static void identity_resolved(struct bt_conn *conn, const bt_addr_le_t *rpa,
-                              const bt_addr_le_t *identity) {
-  char addr_identity[BT_ADDR_LE_STR_LEN];
-  char addr_rpa[BT_ADDR_LE_STR_LEN];
+			      const bt_addr_le_t *identity)
+{
+	char addr_identity[BT_ADDR_LE_STR_LEN];
+	char addr_rpa[BT_ADDR_LE_STR_LEN];
 
-  bt_addr_le_to_str(identity, addr_identity, sizeof(addr_identity));
-  bt_addr_le_to_str(rpa, addr_rpa, sizeof(addr_rpa));
+	bt_addr_le_to_str(identity, addr_identity, sizeof(addr_identity));
+	bt_addr_le_to_str(rpa, addr_rpa, sizeof(addr_rpa));
 
-  LOG_INF("BT Identity resolved %s -> %s", addr_rpa, addr_identity);
+	LOG_INF("BT Identity resolved %s -> %s", addr_rpa, addr_identity);
 }
 
 /** Logged when the security level of a connection changes (e.g. after pairing).
  */
-static void security_changed(struct bt_conn *conn, bt_security_t level,
-                             enum bt_security_err err) {
-  char addr[BT_ADDR_LE_STR_LEN];
+static void security_changed(struct bt_conn *conn, bt_security_t level, enum bt_security_err err)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
 
-  bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-  if (!err) {
-    LOG_INF("BT Security changed: %s level %u", addr, level);
-  } else {
-    LOG_ERR("BT Security failed: %s level %u err %d", addr, level, err);
-  }
+	if (!err) {
+		LOG_INF("BT Security changed: %s level %u", addr, level);
+	} else {
+		LOG_ERR("BT Security failed: %s level %u err %d", addr, level, err);
+	}
 }
 
 BT_CONN_CB_DEFINE(conn_callbacks) = {
-    .connected = connected,
-    .disconnected = disconnected,
-    .identity_resolved = identity_resolved,
-    .security_changed = security_changed,
+	.connected = connected,
+	.disconnected = disconnected,
+	.identity_resolved = identity_resolved,
+	.security_changed = security_changed,
 };
 
 /* ── Pairing / authentication callbacks ──────────────────────────────
@@ -285,34 +287,37 @@ BT_CONN_CB_DEFINE(conn_callbacks) = {
  * exchange happens before the phone can write WiFi credentials.
  */
 
-static void auth_cancel(struct bt_conn *conn) {
-  char addr[BT_ADDR_LE_STR_LEN];
+static void auth_cancel(struct bt_conn *conn)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
 
-  bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-  LOG_INF("BT Pairing cancelled: %s", addr);
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	LOG_INF("BT Pairing cancelled: %s", addr);
 }
 
 static struct bt_conn_auth_cb auth_cb_display = {
-    .cancel = auth_cancel,
+	.cancel = auth_cancel,
 };
 
-static void pairing_complete(struct bt_conn *conn, bool bonded) {
-  char addr[BT_ADDR_LE_STR_LEN];
+static void pairing_complete(struct bt_conn *conn, bool bonded)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
 
-  bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
-  LOG_INF("BT pairing completed: %s, bonded: %d", addr, bonded);
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+	LOG_INF("BT pairing completed: %s, bonded: %d", addr, bonded);
 }
 
 /** On pairing failure, disconnect the client to prevent unauthenticated access.
  */
-static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason) {
-  LOG_INF("BT Pairing Failed (%d). Disconnecting", reason);
-  bt_conn_disconnect(conn, BT_HCI_ERR_AUTH_FAIL);
+static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason)
+{
+	LOG_INF("BT Pairing Failed (%d). Disconnecting", reason);
+	bt_conn_disconnect(conn, BT_HCI_ERR_AUTH_FAIL);
 }
 
 static struct bt_conn_auth_info_cb auth_info_cb_display = {
-    .pairing_complete = pairing_complete,
-    .pairing_failed = pairing_failed,
+	.pairing_complete = pairing_complete,
+	.pairing_failed = pairing_failed,
 };
 
 /* ── Daemon work-queue tasks ─────────────────────────────────────────*/
@@ -323,14 +328,15 @@ static struct bt_conn_auth_info_cb auth_info_cb_display = {
  * This lets a scanning phone see the device's connectivity status without
  * having to connect.
  */
-static void update_adv_data_task(struct k_work *item) {
-  update_wifi_status_in_adv();
-  int err = bt_le_adv_update_data(ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-  if (err != 0) {
-    LOG_INF("Cannot update advertisement data, err = %d", err);
-  }
-  k_work_reschedule_for_queue(&adv_daemon_work_q, &update_adv_data_work,
-                              K_SECONDS(ADV_DATA_UPDATE_INTERVAL));
+static void update_adv_data_task(struct k_work *item)
+{
+	update_wifi_status_in_adv();
+	int err = bt_le_adv_update_data(ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	if (err != 0) {
+		LOG_INF("Cannot update advertisement data, err = %d", err);
+	}
+	k_work_reschedule_for_queue(&adv_daemon_work_q, &update_adv_data_work,
+				    K_SECONDS(ADV_DATA_UPDATE_INTERVAL));
 }
 
 /**
@@ -341,24 +347,24 @@ static void update_adv_data_task(struct k_work *item) {
  *
  * Typically scheduled after a BLE client disconnects (see disconnected()).
  */
-static void update_adv_param_task(struct k_work *item) {
-  int err;
+static void update_adv_param_task(struct k_work *item)
+{
+	int err;
 
-  err = bt_le_adv_stop();
-  if (err != 0) {
-    LOG_ERR("Cannot stop advertisement: err = %d", err);
-    return;
-  }
+	err = bt_le_adv_stop();
+	if (err != 0) {
+		LOG_ERR("Cannot stop advertisement: err = %d", err);
+		return;
+	}
 
-  /* Pick fast or slow interval based on current provisioning state */
-  err = bt_le_adv_start(prov_svc_data[ADV_DATA_FLAG_IDX] &
-                                ADV_DATA_FLAG_PROV_STATUS_BIT
-                            ? PROV_BT_LE_ADV_PARAM_SLOW
-                            : PROV_BT_LE_ADV_PARAM_FAST,
-                        ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-  if (err != 0) {
-    LOG_ERR("Cannot start advertisement: err = %d", err);
-  }
+	/* Pick fast or slow interval based on current provisioning state */
+	err = bt_le_adv_start(prov_svc_data[ADV_DATA_FLAG_IDX] & ADV_DATA_FLAG_PROV_STATUS_BIT
+				      ? PROV_BT_LE_ADV_PARAM_SLOW
+				      : PROV_BT_LE_ADV_PARAM_FAST,
+			      ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	if (err != 0) {
+		LOG_ERR("Cannot start advertisement: err = %d", err);
+	}
 }
 
 /* ── Device name derivation ──────────────────────────────────────────*/
@@ -369,16 +375,17 @@ static void update_adv_param_task(struct k_work *item) {
  * @param byte  Value to convert
  * @param base  Base character for digits A-F (pass 'A' for uppercase)
  */
-static void byte_to_hex(char *ptr, uint8_t byte, char base) {
-  int i, val;
+static void byte_to_hex(char *ptr, uint8_t byte, char base)
+{
+	int i, val;
 
-  for (i = 0, val = (byte & 0xf0) >> 4; i < 2; i++, val = byte & 0x0f) {
-    if (val < 10) {
-      *ptr++ = (char)(val + '0');
-    } else {
-      *ptr++ = (char)(val - 10 + base);
-    }
-  }
+	for (i = 0, val = (byte & 0xf0) >> 4; i < 2; i++, val = byte & 0x0f) {
+		if (val < 10) {
+			*ptr++ = (char)(val + '0');
+		} else {
+			*ptr++ = (char)(val - 10 + base);
+		}
+	}
 }
 
 /**
@@ -386,10 +393,11 @@ static void byte_to_hex(char *ptr, uint8_t byte, char base) {
  * Takes the last 3 octets of the MAC and writes them as uppercase hex
  * into device_name[2..7], producing names like "PV1A2B3C".
  */
-static void update_dev_name(struct net_linkaddr *mac_addr) {
-  byte_to_hex(&device_name[2], mac_addr->addr[3], 'A');
-  byte_to_hex(&device_name[4], mac_addr->addr[4], 'A');
-  byte_to_hex(&device_name[6], mac_addr->addr[5], 'A');
+static void update_dev_name(struct net_linkaddr *mac_addr)
+{
+	byte_to_hex(&device_name[2], mac_addr->addr[3], 'A');
+	byte_to_hex(&device_name[4], mac_addr->addr[4], 'A');
+	byte_to_hex(&device_name[6], mac_addr->addr[5], 'A');
 }
 
 /* ── ble_prov_iface_t implementation ─────────────────────────────────*/
@@ -404,24 +412,25 @@ static void update_dev_name(struct net_linkaddr *mac_addr) {
  *
  * @return 0 on success, negative errno on failure
  */
-static int ble_prov_init(void) {
-  LOG_DBG("Initializing BLE provisioning");
-  if (bt_initialized) {
-    return 0;
-  }
+static int ble_prov_init(void)
+{
+	LOG_DBG("Initializing BLE provisioning");
+	if (bt_initialized) {
+		return 0;
+	}
 
-  bt_conn_auth_cb_register(&auth_cb_display);
-  bt_conn_auth_info_cb_register(&auth_info_cb_display);
+	bt_conn_auth_cb_register(&auth_cb_display);
+	bt_conn_auth_info_cb_register(&auth_info_cb_display);
 
-  int err = bt_enable(NULL);
-  if (err) {
-    LOG_ERR("Bluetooth init failed (err %d)", err);
-    return err;
-  }
-  LOG_INF("Bluetooth initialized");
+	int err = bt_enable(NULL);
+	if (err) {
+		LOG_ERR("Bluetooth init failed (err %d)", err);
+		return err;
+	}
+	LOG_INF("Bluetooth initialized");
 
-  bt_initialized = true;
-  return 0;
+	bt_initialized = true;
+	return 0;
 }
 
 /**
@@ -447,63 +456,62 @@ static int ble_prov_init(void) {
  *
  * @return 0 on success, -1 on failure
  */
-static int ble_prov_start(void) {
-  int err;
-  LOG_DBG("Starting BLE provisioning");
+static int ble_prov_start(void)
+{
+	int err;
+	LOG_DBG("Starting BLE provisioning");
 
-  if (started) {
-    LOG_DBG("BLE provisioning already started");
-    return 0;
-  }
+	if (started) {
+		LOG_DBG("BLE provisioning already started");
+		return 0;
+	}
 
-  /* 1. Register the WiFi Provisioning GATT service */
-  err = wifi_prov_init();
-  if (err != 0) {
-    LOG_ERR("Failed to initialize Wi-Fi provisioning service (err %d)", err);
-    return -1;
-  }
-  LOG_INF("Wi-Fi provisioning service started successfully");
+	/* 1. Register the WiFi Provisioning GATT service */
+	err = wifi_prov_init();
+	if (err != 0) {
+		LOG_ERR("Failed to initialize Wi-Fi provisioning service (err %d)", err);
+		return -1;
+	}
+	LOG_INF("Wi-Fi provisioning service started successfully");
 
-  /* 2. Derive a unique device name from the WiFi MAC address */
-  struct net_if *iface = net_if_get_default();
-  struct net_linkaddr *mac_addr = net_if_get_link_addr(iface);
-  char device_name_str[sizeof(device_name) + 1];
+	/* 2. Derive a unique device name from the WiFi MAC address */
+	struct net_if *iface = net_if_get_default();
+	struct net_linkaddr *mac_addr = net_if_get_link_addr(iface);
+	char device_name_str[sizeof(device_name) + 1];
 
-  if (mac_addr) {
-    update_dev_name(mac_addr);
-  }
-  device_name_str[sizeof(device_name_str) - 1] = '\0';
-  memcpy(device_name_str, device_name, sizeof(device_name));
-  LOG_INF("Set BT device name to %s", device_name_str);
-  bt_set_name(device_name_str);
+	if (mac_addr) {
+		update_dev_name(mac_addr);
+	}
+	device_name_str[sizeof(device_name_str) - 1] = '\0';
+	memcpy(device_name_str, device_name, sizeof(device_name));
+	LOG_INF("Set BT device name to %s", device_name_str);
+	bt_set_name(device_name_str);
 
-  /* 3. Start BLE advertising with current WiFi status in scan response */
-  update_wifi_status_in_adv();
+	/* 3. Start BLE advertising with current WiFi status in scan response */
+	update_wifi_status_in_adv();
 
-  err = bt_le_adv_start(prov_svc_data[ADV_DATA_FLAG_IDX] &
-                                ADV_DATA_FLAG_PROV_STATUS_BIT
-                            ? PROV_BT_LE_ADV_PARAM_SLOW
-                            : PROV_BT_LE_ADV_PARAM_FAST,
-                        ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-  if (err) {
-    LOG_ERR("BT Advertising failed to start (err %d)", err);
-    return -1;
-  }
-  LOG_INF("BT Advertising successfully started");
+	err = bt_le_adv_start(prov_svc_data[ADV_DATA_FLAG_IDX] & ADV_DATA_FLAG_PROV_STATUS_BIT
+				      ? PROV_BT_LE_ADV_PARAM_SLOW
+				      : PROV_BT_LE_ADV_PARAM_FAST,
+			      ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	if (err) {
+		LOG_ERR("BT Advertising failed to start (err %d)", err);
+		return -1;
+	}
+	LOG_INF("BT Advertising successfully started");
 
-  /* 4. Launch daemon work queue for periodic advertisement updates */
-  k_work_queue_init(&adv_daemon_work_q);
-  k_work_queue_start(&adv_daemon_work_q, adv_daemon_stack_area,
-                     K_THREAD_STACK_SIZEOF(adv_daemon_stack_area),
-                     ADV_DAEMON_PRIORITY, NULL);
+	/* 4. Launch daemon work queue for periodic advertisement updates */
+	k_work_queue_init(&adv_daemon_work_q);
+	k_work_queue_start(&adv_daemon_work_q, adv_daemon_stack_area,
+			   K_THREAD_STACK_SIZEOF(adv_daemon_stack_area), ADV_DAEMON_PRIORITY, NULL);
 
-  k_work_init_delayable(&update_adv_param_work, update_adv_param_task);
-  k_work_init_delayable(&update_adv_data_work, update_adv_data_task);
-  k_work_schedule_for_queue(&adv_daemon_work_q, &update_adv_data_work,
-                            K_SECONDS(ADV_DATA_UPDATE_INTERVAL));
+	k_work_init_delayable(&update_adv_param_work, update_adv_param_task);
+	k_work_init_delayable(&update_adv_data_work, update_adv_data_task);
+	k_work_schedule_for_queue(&adv_daemon_work_q, &update_adv_data_work,
+				  K_SECONDS(ADV_DATA_UPDATE_INTERVAL));
 
-  started = true;
-  return 0;
+	started = true;
+	return 0;
 }
 
 /**
@@ -515,34 +523,36 @@ static int ble_prov_start(void) {
  *
  * @return 0 on success, negative errno on failure
  */
-static int ble_prov_stop(void) {
-  LOG_DBG("Stopping BLE provisioning");
+static int ble_prov_stop(void)
+{
+	LOG_DBG("Stopping BLE provisioning");
 
-  if (!started) {
-    return 0;
-  }
+	if (!started) {
+		return 0;
+	}
 
-  started = false;
+	started = false;
 
-  struct k_work_sync sync;
-  k_work_cancel_delayable_sync(&update_adv_data_work, &sync);
-  k_work_cancel_delayable_sync(&update_adv_param_work, &sync);
+	struct k_work_sync sync;
+	k_work_cancel_delayable_sync(&update_adv_data_work, &sync);
+	k_work_cancel_delayable_sync(&update_adv_param_work, &sync);
 
-  return bt_le_adv_stop();
+	return bt_le_adv_stop();
 }
 
 /* ── Interface vtable ────────────────────────────────────────────────── */
 
 static const ble_prov_iface_t iface = {
-    .init = ble_prov_init,
-    .start = ble_prov_start,
-    .stop = ble_prov_stop,
+	.init = ble_prov_init,
+	.start = ble_prov_start,
+	.stop = ble_prov_stop,
 };
 
-const ble_prov_iface_t *ble_prov_get_iface(struct k_msgq *msgq) {
-  /* evt_queue is currently unused — provisioning state changes are
-   * communicated indirectly via wifi_mgr's EVT_WIFI_CONNECTED event
-   * rather than a dedicated provisioning event. */
-  (void)msgq;
-  return &iface;
+const ble_prov_iface_t *ble_prov_get_iface(struct k_msgq *msgq)
+{
+	/* evt_queue is currently unused — provisioning state changes are
+	 * communicated indirectly via wifi_mgr's EVT_WIFI_CONNECTED event
+	 * rather than a dedicated provisioning event. */
+	(void)msgq;
+	return &iface;
 }

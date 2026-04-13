@@ -136,6 +136,8 @@ Follows Zephyr RTOS coding guidelines:
 - Guards: `#pragma once` or include guards
 - Naming: snake_case for variables/functions/types, UPPER_CASE for macros
 - Types: Typedef all structs with `_t` suffix
+- Format all edited `.c` and `.h` files with `clang-format` (config in repo root)
+- A pre-commit hook checks formatting; set up with: `git config core.hooksPath hooks`
 
 # Testing
 

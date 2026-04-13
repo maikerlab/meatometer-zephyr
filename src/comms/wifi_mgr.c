@@ -25,12 +25,12 @@ static bool wifi_mgr_has_credentials(void);
 static int wifi_mgr_connect_stored(void);
 
 static const network_iface_t net_iface = {
-    .init = wifi_mgr_init,
-    .connect = wifi_mgr_connect,
-    .disconnect = wifi_mgr_disconnect,
-    .is_connected = wifi_mgr_is_connected,
-    .has_credentials = wifi_mgr_has_credentials,
-    .connect_stored = wifi_mgr_connect_stored,
+	.init = wifi_mgr_init,
+	.connect = wifi_mgr_connect,
+	.disconnect = wifi_mgr_disconnect,
+	.is_connected = wifi_mgr_is_connected,
+	.has_credentials = wifi_mgr_has_credentials,
+	.connect_stored = wifi_mgr_connect_stored,
 };
 static struct k_msgq *evt_queue;
 static struct net_mgmt_event_callback mgmt_cb;
@@ -40,53 +40,55 @@ static bool connected;
 
 /* ── Net-Management Callbacks ────────────────────────────────────────── */
 
-static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb,
-                                   uint64_t mgmt_event, struct net_if *iface) {
-  if ((mgmt_event & EVENT_MASK) != mgmt_event) {
-    return;
-  }
-  if (mgmt_event == NET_EVENT_L4_CONNECTED) {
-    LOG_DBG("Received Wi-Fi connected event");
-    connected = true;
-    k_sem_give(&connect_sem);
-    app_event_t connect_evt = {
-        .type = EVT_WIFI_CONNECTED,
-    };
-    k_msgq_put(evt_queue, &connect_evt, K_NO_WAIT);
-    return;
-  }
-  if (mgmt_event == NET_EVENT_L4_DISCONNECTED) {
-    if (connected == false) {
-      LOG_DBG("Waiting for Wi-Fi to be connected");
-    } else {
-      LOG_DBG("Wi-Fi disconnected");
-      connected = false;
-      app_event_t disconnect_evt = {
-          .type = EVT_WIFI_DISCONNECTED,
-      };
-      k_msgq_put(evt_queue, &disconnect_evt, K_NO_WAIT);
-    }
-    k_sem_reset(&connect_sem);
-    return;
-  }
+static void net_mgmt_event_handler(struct net_mgmt_event_callback *cb, uint64_t mgmt_event,
+				   struct net_if *iface)
+{
+	if ((mgmt_event & EVENT_MASK) != mgmt_event) {
+		return;
+	}
+	if (mgmt_event == NET_EVENT_L4_CONNECTED) {
+		LOG_DBG("Received Wi-Fi connected event");
+		connected = true;
+		k_sem_give(&connect_sem);
+		app_event_t connect_evt = {
+			.type = EVT_WIFI_CONNECTED,
+		};
+		k_msgq_put(evt_queue, &connect_evt, K_NO_WAIT);
+		return;
+	}
+	if (mgmt_event == NET_EVENT_L4_DISCONNECTED) {
+		if (connected == false) {
+			LOG_DBG("Waiting for Wi-Fi to be connected");
+		} else {
+			LOG_DBG("Wi-Fi disconnected");
+			connected = false;
+			app_event_t disconnect_evt = {
+				.type = EVT_WIFI_DISCONNECTED,
+			};
+			k_msgq_put(evt_queue, &disconnect_evt, K_NO_WAIT);
+		}
+		k_sem_reset(&connect_sem);
+		return;
+	}
 }
 
-static int wifi_args_to_params(struct wifi_connect_req_params *params) {
-  /* Populate SSID and password from Zephyr's WiFi credentials configuration */
-  params->ssid = CONFIG_APP_WIFI_SSID;
-  params->ssid_length = strlen(params->ssid);
+static int wifi_args_to_params(struct wifi_connect_req_params *params)
+{
+	/* Populate SSID and password from Zephyr's WiFi credentials configuration */
+	params->ssid = CONFIG_APP_WIFI_SSID;
+	params->ssid_length = strlen(params->ssid);
 
-  params->psk = CONFIG_APP_WIFI_PASSWORD;
-  params->psk_length = strlen(params->psk);
+	params->psk = CONFIG_APP_WIFI_PASSWORD;
+	params->psk_length = strlen(params->psk);
 
-  // Populate the rest of the relevant members
-  params->channel = WIFI_CHANNEL_ANY;
-  params->security = WIFI_SECURITY_TYPE_PSK;
-  params->mfp = WIFI_MFP_OPTIONAL;
-  params->timeout = SYS_FOREVER_MS;
-  params->band = WIFI_FREQ_BAND_UNKNOWN;
-  memset(params->bssid, 0, sizeof(params->bssid));
-  return 0;
+	// Populate the rest of the relevant members
+	params->channel = WIFI_CHANNEL_ANY;
+	params->security = WIFI_SECURITY_TYPE_PSK;
+	params->mfp = WIFI_MFP_OPTIONAL;
+	params->timeout = SYS_FOREVER_MS;
+	params->band = WIFI_FREQ_BAND_UNKNOWN;
+	memset(params->bssid, 0, sizeof(params->bssid));
+	return 0;
 }
 
 /**
@@ -95,28 +97,29 @@ static int wifi_args_to_params(struct wifi_connect_req_params *params) {
  * @param event_queue Pointer to the app event message queue for posting WiFi
  * events.
  */
-static int wifi_mgr_init(void) {
-  connected = false;
+static int wifi_mgr_init(void)
+{
+	connected = false;
 
-  LOG_DBG("Initializing Wi-Fi driver...");
-  /* Sleep 1 sec. to allow initialization of Wi-Fi driver */
-  k_sleep(K_SECONDS(1));
-  iface = net_if_get_first_wifi();
-  if (iface == NULL) {
-    LOG_ERR("Returned network interface is NULL");
-  }
+	LOG_DBG("Initializing Wi-Fi driver...");
+	/* Sleep 1 sec. to allow initialization of Wi-Fi driver */
+	k_sleep(K_SECONDS(1));
+	iface = net_if_get_first_wifi();
+	if (iface == NULL) {
+		LOG_ERR("Returned network interface is NULL");
+	}
 
-  net_if_up(iface);
-  /*     while (!net_if_is_up(iface))
-      {
-          LOG_DBG("Waiting for Wi-Fi interface to be up...");
-          k_sleep(K_SECONDS(1));
-      } */
+	net_if_up(iface);
+	/*     while (!net_if_is_up(iface))
+	    {
+		LOG_DBG("Waiting for Wi-Fi interface to be up...");
+		k_sleep(K_SECONDS(1));
+	    } */
 
-  net_mgmt_init_event_callback(&mgmt_cb, net_mgmt_event_handler, EVENT_MASK);
-  net_mgmt_add_event_callback(&mgmt_cb);
+	net_mgmt_init_event_callback(&mgmt_cb, net_mgmt_event_handler, EVENT_MASK);
+	net_mgmt_add_event_callback(&mgmt_cb);
 
-  return 0;
+	return 0;
 }
 
 /**
@@ -128,48 +131,48 @@ static int wifi_mgr_init(void) {
  *   -ETIMEDOUT if connection timed out,
  *   or -ECONNREFUSED if connection was refused.
  */
-static int wifi_mgr_connect(void) {
-  LOG_INF("Connecting to SSID: %s", CONFIG_APP_WIFI_SSID);
+static int wifi_mgr_connect(void)
+{
+	LOG_INF("Connecting to SSID: %s", CONFIG_APP_WIFI_SSID);
 
-  struct wifi_connect_req_params cnx_params;
+	struct wifi_connect_req_params cnx_params;
 
-  wifi_args_to_params(&cnx_params);
+	wifi_args_to_params(&cnx_params);
 
-  net_mgmt(NET_REQUEST_WIFI_CONNECT, &iface, &cnx_params,
-           sizeof(struct wifi_connect_req_params));
+	net_mgmt(NET_REQUEST_WIFI_CONNECT, &iface, &cnx_params,
+		 sizeof(struct wifi_connect_req_params));
 
-  // Wait for DHCP or timeout
-  if (k_sem_take(&connect_sem, CONNECT_TIMEOUT) != 0) {
-    LOG_ERR("WiFi connect timeout!");
+	// Wait for DHCP or timeout
+	if (k_sem_take(&connect_sem, CONNECT_TIMEOUT) != 0) {
+		LOG_ERR("WiFi connect timeout!");
 
-    app_event_t fail_evt = {
-        .type = EVT_WIFI_CONNECT_FAILED,
-        .data.error_code = -ETIMEDOUT,
-    };
-    k_msgq_put(evt_queue, &fail_evt, K_NO_WAIT);
-    return -ETIMEDOUT;
-  }
+		app_event_t fail_evt = {
+			.type = EVT_WIFI_CONNECT_FAILED,
+			.data.error_code = -ETIMEDOUT,
+		};
+		k_msgq_put(evt_queue, &fail_evt, K_NO_WAIT);
+		return -ETIMEDOUT;
+	}
 
-  if (!connected) {
-    LOG_ERR("WiFi connection failed!");
-    return -ECONNREFUSED;
-  }
+	if (!connected) {
+		LOG_ERR("WiFi connection failed!");
+		return -ECONNREFUSED;
+	}
 
-  LOG_INF("Wi-Fi connected!");
-  struct net_if_ipv4 *ipv4 = iface->config.ip.ipv4;
-  if (!ipv4) {
-    LOG_ERR("No IPv4 address assigned to Wi-Fi interface");
-    return -EADDRNOTAVAIL;
-  }
-  char addr[NET_IPV4_ADDR_LEN];
-  net_addr_ntop(AF_INET, &ipv4->unicast[0].ipv4.address.in_addr, addr,
-                sizeof(addr));
-  LOG_INF("Own IP: %s", addr);
+	LOG_INF("Wi-Fi connected!");
+	struct net_if_ipv4 *ipv4 = iface->config.ip.ipv4;
+	if (!ipv4) {
+		LOG_ERR("No IPv4 address assigned to Wi-Fi interface");
+		return -EADDRNOTAVAIL;
+	}
+	char addr[NET_IPV4_ADDR_LEN];
+	net_addr_ntop(AF_INET, &ipv4->unicast[0].ipv4.address.in_addr, addr, sizeof(addr));
+	LOG_INF("Own IP: %s", addr);
 
-  app_event_t conn_evt = {.type = EVT_WIFI_CONNECTED};
-  k_msgq_put(evt_queue, &conn_evt, K_NO_WAIT);
+	app_event_t conn_evt = {.type = EVT_WIFI_CONNECTED};
+	k_msgq_put(evt_queue, &conn_evt, K_NO_WAIT);
 
-  return 0;
+	return 0;
 }
 
 /**
@@ -178,36 +181,41 @@ static int wifi_mgr_connect(void) {
  *   -ENOEXEC if disconnection failed,
  *   or -ENODEV if no Wi-Fi interface is available
  */
-static int wifi_mgr_disconnect(void) {
-  struct net_if *iface = net_if_get_first_wifi();
-  if (!iface) {
-    return -ENODEV;
-  }
+static int wifi_mgr_disconnect(void)
+{
+	struct net_if *iface = net_if_get_first_wifi();
+	if (!iface) {
+		return -ENODEV;
+	}
 
-  int err = net_mgmt(NET_REQUEST_WIFI_DISCONNECT, iface, NULL, 0);
-  if (err) {
-    LOG_ERR("Disconnecting from Wi-Fi failed, err: %d", err);
-    return ENOEXEC;
-  }
+	int err = net_mgmt(NET_REQUEST_WIFI_DISCONNECT, iface, NULL, 0);
+	if (err) {
+		LOG_ERR("Disconnecting from Wi-Fi failed, err: %d", err);
+		return ENOEXEC;
+	}
 
-  connected = false;
-  app_event_t disc_evt = {.type = EVT_WIFI_DISCONNECTED};
-  k_msgq_put(evt_queue, &disc_evt, K_NO_WAIT);
+	connected = false;
+	app_event_t disc_evt = {.type = EVT_WIFI_DISCONNECTED};
+	k_msgq_put(evt_queue, &disc_evt, K_NO_WAIT);
 
-  return err;
+	return err;
 }
 
 /**
  * Returns true if currently connected and an IP address is available.
  */
-static bool wifi_mgr_is_connected(void) { return connected; }
+static bool wifi_mgr_is_connected(void)
+{
+	return connected;
+}
 
 /**
  * Checks if stored WiFi credentials exist.
  * @return true if at least one set of credentials is stored
  */
-static bool wifi_mgr_has_credentials(void) {
-  return !wifi_credentials_is_empty();
+static bool wifi_mgr_has_credentials(void)
+{
+	return !wifi_credentials_is_empty();
 }
 
 /**
@@ -216,22 +224,24 @@ static bool wifi_mgr_has_credentials(void) {
  * EVT_WIFI_CONNECT_FAILED.
  * @return 0 on success (connection initiated), negative error code on failure
  */
-static int wifi_mgr_connect_stored(void) {
-  LOG_INF("Connecting with stored credentials...");
-  struct net_if *wifi_iface = net_if_get_first_wifi();
-  if (!wifi_iface) {
-    LOG_ERR("No Wi-Fi interface available");
-    return -ENODEV;
-  }
-  int err = net_mgmt(NET_REQUEST_WIFI_CONNECT_STORED, wifi_iface, NULL, 0);
-  if (err) {
-    LOG_ERR("Failed to initiate stored-credential connect, err: %d", err);
-    return err;
-  }
-  return 0;
+static int wifi_mgr_connect_stored(void)
+{
+	LOG_INF("Connecting with stored credentials...");
+	struct net_if *wifi_iface = net_if_get_first_wifi();
+	if (!wifi_iface) {
+		LOG_ERR("No Wi-Fi interface available");
+		return -ENODEV;
+	}
+	int err = net_mgmt(NET_REQUEST_WIFI_CONNECT_STORED, wifi_iface, NULL, 0);
+	if (err) {
+		LOG_ERR("Failed to initiate stored-credential connect, err: %d", err);
+		return err;
+	}
+	return 0;
 }
 
-const network_iface_t *wifi_get_iface(struct k_msgq *msgq) {
-  evt_queue = msgq;
-  return &net_iface;
+const network_iface_t *wifi_get_iface(struct k_msgq *msgq)
+{
+	evt_queue = msgq;
+	return &net_iface;
 }
