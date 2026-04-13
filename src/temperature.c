@@ -1,11 +1,7 @@
-// tests/unit/mocks/hal_mock.c
 #include "temperature.h"
 #include "app_config.h"
 #include "app_events.h"
-#include "hal_iface.h"
-#include <zephyr/devicetree.h>
-#include <zephyr/drivers/sensor.h>
-#include <zephyr/drivers/spi.h>
+#include "sensor/sensor_registry.h"
 #include <zephyr/logging/log.h>
 
 LOG_MODULE_REGISTER(sensor, LOG_LEVEL_DBG);
@@ -22,7 +18,6 @@ K_SEM_DEFINE(measure_sem, 0, 1);
 K_THREAD_STACK_DEFINE(measure_thread_stack, MEASURE_THREAD_STACK_SIZE);
 
 static struct k_msgq *evt_queue;
-static const sensor_iface_t *sensor_ref;
 static struct k_thread measure_thread_data;
 
 static void measure_thread_fn(void *p1, void *p2, void *p3)
@@ -37,18 +32,30 @@ static void measure_thread_fn(void *p1, void *p2, void *p3)
 		LOG_INF("Measuring started");
 
 		while (true) {
-			float temp;
-			int ret = sensor_ref->read_temp(&temp);
+			uint8_t mask = sensor_registry_get_connected_mask();
 
-			if (ret == 0) {
-				app_event_t evt = {
-					.type = EVT_TEMP_UPDATE,
-					.data.temperature = temp,
-				};
-				k_msgq_put(evt_queue, &evt, K_NO_WAIT);
-				LOG_DBG("Posted EVT_TEMP_UPDATE: %.2f °C", (double)temp);
-			} else {
-				LOG_ERR("read_temp failed: %d", ret);
+			for (uint8_t i = 0; i < SENSOR_MAX_COUNT; i++) {
+				if (!(mask & (1U << i))) {
+					continue;
+				}
+				const sensor_iface_t *s = sensor_registry_get(i);
+				if (s == NULL) {
+					continue;
+				}
+				float temp;
+				int ret = s->read_temp(&temp);
+
+				if (ret == 0) {
+					LOG_DBG("Slot %u: %.1f °C", i, (double)temp);
+					app_event_t evt = {
+						.type = EVT_TEMP_UPDATE,
+						.data.temp.sensor_slot = i,
+						.data.temp.temperature = temp,
+					};
+					k_msgq_put(evt_queue, &evt, K_NO_WAIT);
+				} else {
+					LOG_ERR("Slot %u: read_temp failed: %d", i, ret);
+				}
 			}
 
 			/*
@@ -66,10 +73,9 @@ static void measure_thread_fn(void *p1, void *p2, void *p3)
 
 /* ── Public API ─────────────────────────────────────────────── */
 
-int temperature_init(const sensor_iface_t *sensor, struct k_msgq *queue)
+int temperature_init(struct k_msgq *queue)
 {
 	LOG_INF("Initializing temperature measurement...");
-	sensor_ref = sensor;
 	evt_queue = queue;
 
 	k_thread_create(&measure_thread_data, measure_thread_stack,

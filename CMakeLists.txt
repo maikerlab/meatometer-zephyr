@@ -16,6 +16,7 @@ target_sources(app PRIVATE
     src/comms/mqtt_mgr.c
     src/hal/hal.c
     src/sensor/dummy.c
+    src/sensor/sensor_registry.c
     src/temperature.c
 )
 

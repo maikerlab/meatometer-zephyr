@@ -14,6 +14,7 @@
 #include "fsm/session_fsm.h"
 #include "hal/hal.h"
 #include "sensor/dummy.h"
+#include "sensor/sensor_registry.h"
 #include "temperature.h"
 #include <zephyr/app_version.h>
 #include <zephyr/kernel.h>
@@ -37,20 +38,24 @@ int main(void)
 
 	// Get all interfaces
 	const hal_iface_t *hal = hal_get_iface(&app_event_queue);
-	const sensor_iface_t *sensor = sensor_dummy_get_iface();
 	const network_iface_t *wifi = wifi_get_iface(&app_event_queue);
 	const mqtt_iface_t *mqtt = mqtt_get_iface(&app_event_queue);
 	const ble_prov_iface_t *ble_prov = ble_prov_get_iface(&app_event_queue);
 
 	// Initialize subsystems
 	hal->init();
-	sensor->init();
 	wifi->init();
 	mqtt->init();
 	ble_prov->init();
 
-	// Initialize sensors
-	temperature_init(sensor, &app_event_queue);
+	// Initialize sensor registry
+	sensor_registry_init();
+	// Register dummy sensors - TODO: replace with real sensors if interface is implemented
+	sensor_registry_register(0, sensor_dummy_get_iface());
+	sensor_registry_register(1, sensor_dummy_get_iface());
+
+	// Initialize temperature measurement thread
+	temperature_init(&app_event_queue);
 
 	// Initialize state machines
 	session_fsm_init(hal, mqtt);

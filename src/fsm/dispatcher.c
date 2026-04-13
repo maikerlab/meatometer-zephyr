@@ -26,11 +26,19 @@ static void dispatcher_thread_fn(void *p1, void *p2, void *p3)
 
 	app_event_t evt;
 
+	int err;
 	while (true) {
-		k_msgq_get(evt_queue, &evt, K_FOREVER);
-		LOG_DBG("Event received: %d", evt.type);
-		session_fsm_handle_event(&evt);
-		conn_fsm_handle_event(&evt);
+		err = k_msgq_get(evt_queue, &evt, K_FOREVER);
+		if (err != 0) {
+			LOG_ERR("Failed to get event from queue - error code: %d", err);
+			continue;
+		}
+		if (session_fsm_handle_event(&evt) != 0) {
+			LOG_ERR("Error handling event in Session FSM");
+		}
+		if (conn_fsm_handle_event(&evt) != 0) {
+			LOG_ERR("Error handling event in Connection FSM");
+		}
 	}
 }
 

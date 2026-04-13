@@ -29,5 +29,5 @@ typedef struct {
 	 * @param temp_celsius Temperature value in °C to publish
 	 * @return 0 on success, negative error code on failure
 	 */
-	int (*publish_temperature)(float temp_celsius);
+	int (*publish_temperature)(uint8_t sensor_slot, float temp_celsius);
 } mqtt_iface_t;

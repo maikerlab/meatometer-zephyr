@@ -26,7 +26,10 @@ typedef enum {
 typedef struct {
 	app_event_type_t type;
 	union {
-		float temperature;
+		struct {
+			uint8_t sensor_slot;
+			float temperature;
+		} temp;
 		int error_code;
 	} data;
 } app_event_t;
