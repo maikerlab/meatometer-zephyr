@@ -146,8 +146,22 @@ ZTEST(conn_fsm, test_reconnect_button_from_online_starts_provisioning) {
   SEND(EVT_BTN_RECONNECT_WIFI);
   zassert_false(conn_fsm_is_online(),
                 "Must not be online after reconnect button");
+  zassert_false(mqtt_mock_is_connected(),
+                "MQTT must be disconnected before leaving ONLINE");
   zassert_true(ble_prov_mock_start_called(),
                "BLE provisioning must start on reconnect button");
+}
+
+ZTEST(conn_fsm, test_reconnect_button_from_provisioning_goes_to_wifi) {
+  init_without_creds();
+  ble_prov_mock_reset();
+  network_mock_reset();
+  network_mock_set_has_credentials(true);
+  SEND(EVT_BTN_RECONNECT_WIFI);
+  zassert_true(ble_prov_mock_stop_called(),
+               "BLE provisioning must be stopped on reconnect from provisioning");
+  zassert_true(network_mock_connect_stored_called(),
+               "connect_stored must be called after transitioning to WIFI_CONNECTING");
 }
 
 ZTEST(conn_fsm, test_reconnect_button_from_wifi_connecting) {

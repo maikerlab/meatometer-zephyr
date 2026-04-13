@@ -119,8 +119,10 @@ static enum smf_state_result state_provisioning_run(void *o) {
     smf_set_state(SMF_CTX(c), &states[ST_MQTT_CONNECTING]);
     break;
   case EVT_BTN_RECONNECT_WIFI:
-    /* Already in provisioning, restart BLE advertising */
-    c->ble_prov->start();
+    /* Already in provisioning, cancel BLE advertising */
+    LOG_INF("Cancel BLE provisioning...");
+    c->ble_prov->stop();
+    smf_set_state(SMF_CTX(c), &states[ST_WIFI_CONNECTING]);
     break;
   default:
     break;
@@ -208,6 +210,7 @@ static enum smf_state_result state_online_run(void *o) {
     smf_set_state(SMF_CTX(c), &states[ST_MQTT_CONNECTING]);
     break;
   case EVT_BTN_RECONNECT_WIFI:
+    c->mqtt->disconnect();
     smf_set_state(SMF_CTX(c), &states[ST_PROVISIONING]);
     break;
   default:

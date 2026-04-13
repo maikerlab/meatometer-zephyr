@@ -52,7 +52,7 @@ int main(void) {
   temperature_init(sensor, &app_event_queue);
 
   // Initialize state machines
-  session_fsm_init(hal, mqtt, &app_event_queue);
+  session_fsm_init(hal, mqtt);
   conn_fsm_init(hal, wifi, mqtt, ble_prov);
 
   dispatcher_init(&app_event_queue);

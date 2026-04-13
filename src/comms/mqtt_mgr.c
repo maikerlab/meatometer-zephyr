@@ -137,7 +137,6 @@ static int mqtt_mgr_connect(void) {
     LOG_ERR("Failed to connect to MQTT, error code: %d", err);
     return -1;
   }
-  LOG_INF("Connected to MQTT broker!");
   return 0;
 }
 

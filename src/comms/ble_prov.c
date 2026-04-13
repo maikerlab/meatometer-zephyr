@@ -33,14 +33,6 @@
  *   4. The NCS library stores credentials (Zephyr WiFi Credentials / NVS) and
  *      triggers WiFi connection internally
  *   5. wifi_mgr.c's net_mgmt callback posts EVT_WIFI_CONNECTED to the FSM
- *
- * TODO: ble_prov_start() is not idempotent — calling it twice will re-init the
- *       work queue and call wifi_prov_init() again. Add a guard flag or
- *       cleanup logic before re-initializing.
- *
- * TODO: ble_prov_stop() only stops advertising but does not cancel the daemon
- *       work queue tasks. The periodic tasks will keep firing and fail because
- *       no advertiser is active. Cancel work items in ble_prov_stop().
  */
 
 #include "ble_prov.h"
@@ -67,6 +59,7 @@ LOG_MODULE_REGISTER(ble_prov, LOG_LEVEL_DBG);
 /* ── Module state ────────────────────────────────────────────────────── */
 
 static bool bt_initialized;
+static bool started;
 
 /* ── Advertising timing ──────────────────────────────────────────────── */
 
@@ -236,6 +229,10 @@ static void disconnected(struct bt_conn *conn, uint8_t reason) {
 
   bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
   LOG_INF("BT Disconnected: %s (reason 0x%02x)", addr, reason);
+
+  if (!started) {
+    return;
+  }
 
   k_work_reschedule_for_queue(&adv_daemon_work_q, &update_adv_param_work,
                               K_SECONDS(ADV_PARAM_UPDATE_DELAY));
@@ -454,6 +451,11 @@ static int ble_prov_start(void) {
   int err;
   LOG_DBG("Starting BLE provisioning");
 
+  if (started) {
+    LOG_DBG("BLE provisioning already started");
+    return 0;
+  }
+
   /* 1. Register the WiFi Provisioning GATT service */
   err = wifi_prov_init();
   if (err != 0) {
@@ -500,23 +502,32 @@ static int ble_prov_start(void) {
   k_work_schedule_for_queue(&adv_daemon_work_q, &update_adv_data_work,
                             K_SECONDS(ADV_DATA_UPDATE_INTERVAL));
 
+  started = true;
   return 0;
 }
 
 /**
- * Stop BLE advertising.
+ * Stop BLE advertising and cancel daemon work items.
  *
  * Note: this does NOT deinit the Bluetooth stack or unregister the GATT
  * service — only stops advertising so the device is no longer discoverable.
  * The GATT service remains registered for potential future restarts.
  *
- * TODO: Cancel update_adv_data_work and update_adv_param_work here to
- *       prevent the daemon tasks from firing against a stopped advertiser.
- *
  * @return 0 on success, negative errno on failure
  */
 static int ble_prov_stop(void) {
   LOG_DBG("Stopping BLE provisioning");
+
+  if (!started) {
+    return 0;
+  }
+
+  started = false;
+
+  struct k_work_sync sync;
+  k_work_cancel_delayable_sync(&update_adv_data_work, &sync);
+  k_work_cancel_delayable_sync(&update_adv_param_work, &sync);
+
   return bt_le_adv_stop();
 }
 
