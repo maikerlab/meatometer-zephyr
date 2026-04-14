@@ -3,6 +3,7 @@
 #include "mocks/hal_mock.h"
 #include "mocks/mqtt_mock.h"
 #include "mocks/sensor_registry_mock.h"
+#include "mocks/temp_mock.h"
 #include "temperature.h"
 #include <zephyr/ztest.h>
 
@@ -24,6 +25,7 @@ static void before_each(void *f)
 	(void)(f);
 	hal_mock_reset();
 	sensor_registry_mock_reset();
+	temp_mock_reset();
 	sensor_registry_mock_set_connected_mask(0x01);
 	session_fsm_init(hal_mock_get_iface(), mqtt_mock_get_iface());
 }

@@ -95,12 +95,23 @@ int session_fsm_handle_event(const app_event_t *evt)
 	return smf_run_state(SMF_CTX(&ctx));
 }
 
+/* ── Helpers ─────────────────────────────────────────────────────────── */
+
+static void handle_temperature_update(sm_ctx_t *c)
+{
+	uint8_t slot = c->current_event.data.temp.sensor_slot;
+	float temp = c->current_event.data.temp.temperature;
+	LOG_DBG("Received temperature update: slot %u = %.1f °C", slot, (double)temp);
+	c->mqtt->publish_temperature(slot, temp);
+}
+
 /* ── State: IDLE ─────────────────────────────────────────────────────── */
 
 static void state_idle_entry(void *o)
 {
 	sm_ctx_t *c = (sm_ctx_t *)o;
 	LOG_INF("→ IDLE");
+	temperature_stop();
 	c->hal->led_set(LED_MEASURING, false);
 	c->led_measuring_on = false;
 }
@@ -171,12 +182,8 @@ static enum smf_state_result state_measuring_run(void *o)
 		smf_set_state(SMF_CTX(c), &states[ST_IDLE]);
 		break;
 	case EVT_TEMP_UPDATE:
-		/* Temperature update */
-		uint8_t slot = c->current_event.data.temp.sensor_slot;
-		float temp = c->current_event.data.temp.temperature;
-		LOG_DBG("Received temperature update: slot %u = %.1f °C", slot, (double)temp);
-		c->mqtt->publish_temperature(slot, temp);
-		if (temp >= c->target_temp) {
+		handle_temperature_update(c);
+		if (c->current_event.data.temp.temperature >= c->target_temp) {
 			/* Target temperature reached → DONE */
 			smf_set_state(SMF_CTX(c), &states[ST_DONE]);
 		}
@@ -192,7 +199,6 @@ static void state_measuring_exit(void *o)
 	LOG_DBG("Exiting MEASURING state");
 	sm_ctx_t *c = (sm_ctx_t *)o;
 	c->connected_mask = 0;
-	temperature_stop();
 	atomic_store(&measuring_active, 0);
 }
 
@@ -212,6 +218,9 @@ static enum smf_state_result state_done_run(void *o)
 	case EVT_BTN_MEASURE:
 		/* Measure-Toggle → Back to IDLE (must start a new cycle) */
 		smf_set_state(SMF_CTX(c), &states[ST_IDLE]);
+		break;
+	case EVT_TEMP_UPDATE:
+		handle_temperature_update(c);
 		break;
 	default:
 		break;
