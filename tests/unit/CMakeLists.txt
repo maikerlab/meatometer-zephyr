@@ -19,5 +19,5 @@ target_sources(app PRIVATE
     mocks/sensor_registry_mock.c
     ../../src/fsm/session_fsm.c
     ../../src/fsm/conn_fsm.c
-    ../../src/temperature.c
+    mocks/temp_mock.c
 )
