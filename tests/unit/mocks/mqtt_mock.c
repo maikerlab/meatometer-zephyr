@@ -1,4 +1,5 @@
 #include "mqtt_mock.h"
+#include <stddef.h>
 
 static bool mock_initialized = false;
 static bool mock_connected = false;
