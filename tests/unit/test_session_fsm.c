@@ -84,7 +84,7 @@ ZTEST(session_fsm, test_temp_reached_goes_to_done)
 
 	SEND_TEMP(0, 80.0f);
 
-	zassert_false(session_fsm_is_measuring(), "Must stop measuring");
+	zassert_true(session_fsm_is_measuring(), "Must not stop measuring");
 	zassert_true(hal_mock_led_blink_get(LED_MEASURING), "Done LED must be blinking");
 }
 
@@ -148,20 +148,20 @@ ZTEST(session_fsm, test_reached_target_with_multiple_sensors)
 	session_fsm_set_target_temp(1, 90.0f);
 	SEND(EVT_BTN_MEASURE); /* IDLE → DETECTING → MEASURING */
 
-	/* Slot 0 below its target, slot 1 below its target */
+	/* Slot 0 and Slot 1 below their targets */
 	SEND_TEMP(0, 69.0f);
 	SEND_TEMP(1, 89.0f);
 	zassert_false(hal_mock_led_blink_get(LED_MEASURING), "Done LED must not be blinking");
 	zassert_true(session_fsm_is_measuring(), "Must stay measuring when both below targets");
 
-	/* Slot 1 reaches its own target → DONE */
-	SEND_TEMP(1, 90.0f);
+	/* Slot 0 reaches its own target → DONE */
+	SEND_TEMP(0, 70.0f);
 	zassert_true(hal_mock_led_blink_get(LED_MEASURING), "Done LED must be blinking");
 	zassert_true(session_fsm_is_measuring(),
 		     "Must stay measuring when one slot reaches target");
 
-	/* Slot 2 reaches its own target → DONE */
-	SEND_TEMP(0, 90.0f);
+	/* Slot 1 reaches its own target → DONE */
+	SEND_TEMP(1, 90.0f);
 	zassert_true(hal_mock_led_blink_get(LED_MEASURING), "Done LED must be blinking");
 	zassert_true(session_fsm_is_measuring(),
 		     "Must stay measuring when both slots reach target");

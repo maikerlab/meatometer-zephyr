@@ -33,7 +33,7 @@ A smart multi-probe meat thermometer built on the Nordic Semiconductor nRF7002 D
 - [ ] Offline buffering with chronological replay on reconnect
 - [x] MQTT subscription for target temperature control
 - [ ] MQTT Last Will and Testament
-- [ ] Session state publishing via MQTT
+- [x] Session state publishing via MQTT
 - [x] Home Assistant MQTT auto-discovery
 
 ## Hardware
