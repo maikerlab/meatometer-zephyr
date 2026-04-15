@@ -10,7 +10,6 @@
 static bool mock_connected;
 static bool mock_has_creds;
 static bool connect_called;
-static bool connect_stored_called;
 static bool disconnect_called;
 
 static int mock_init(void)
@@ -37,7 +36,7 @@ static bool mock_has_credentials(void)
 
 static int mock_connect_stored(void)
 {
-	connect_stored_called = true;
+	connect_called = true;
 	return 0;
 }
 
@@ -59,18 +58,13 @@ void network_mock_reset(void)
 	mock_connected = false;
 	mock_has_creds = false;
 	connect_called = false;
-	connect_stored_called = false;
+	connect_called = false;
 	disconnect_called = false;
 }
 
 void network_mock_set_has_credentials(bool value)
 {
 	mock_has_creds = value;
-}
-
-bool network_mock_connect_stored_called(void)
-{
-	return connect_stored_called;
 }
 
 bool network_mock_connect_called(void)

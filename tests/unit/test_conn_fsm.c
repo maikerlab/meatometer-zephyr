@@ -73,7 +73,7 @@ ZTEST(conn_fsm, test_init_with_creds_not_online)
 {
 	/* before_each already called init_with_creds */
 	zassert_false(conn_fsm_is_online());
-	zassert_true(network_mock_connect_stored_called(),
+	zassert_true(network_mock_connect_called(),
 		     "connect_stored must be called when creds exist");
 	zassert_true(hal_mock_led_blink_get(LED_STATUS), "LED1 must blink in WIFI_CONNECTING");
 }
@@ -83,7 +83,7 @@ ZTEST(conn_fsm, test_init_without_creds_starts_provisioning)
 	init_without_creds();
 	zassert_false(conn_fsm_is_online());
 	zassert_true(ble_prov_mock_start_called(), "BLE provisioning must start when no creds");
-	zassert_false(network_mock_connect_stored_called(),
+	zassert_false(network_mock_connect_called(),
 		      "connect_stored must NOT be called without creds");
 	zassert_true(hal_mock_led_blink_get(LED_STATUS), "LED1 must blink in PROVISIONING");
 }
@@ -127,8 +127,7 @@ ZTEST(conn_fsm, test_wifi_disconnect_from_online_reconnects)
 	network_mock_set_has_credentials(true);
 	SEND(EVT_WIFI_DISCONNECTED);
 	zassert_false(conn_fsm_is_online(), "Must not be online after WiFi disconnect");
-	zassert_true(network_mock_connect_stored_called(),
-		     "connect_stored must be called to reconnect");
+	zassert_true(network_mock_connect_called(), "connect_stored must be called to reconnect");
 	zassert_true(hal_mock_led_blink_get(LED_STATUS), "LED1 must blink while reconnecting");
 }
 
@@ -161,7 +160,7 @@ ZTEST(conn_fsm, test_reconnect_button_from_provisioning_goes_to_wifi)
 	SEND(EVT_BTN_RECONNECT_WIFI);
 	zassert_true(ble_prov_mock_stop_called(),
 		     "BLE provisioning must be stopped on reconnect from provisioning");
-	zassert_true(network_mock_connect_stored_called(),
+	zassert_true(network_mock_connect_called(),
 		     "connect_stored must be called after transitioning to WIFI_CONNECTING");
 }
 
