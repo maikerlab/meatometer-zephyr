@@ -127,6 +127,7 @@ static void state_idle_entry(void *o)
 	sm_ctx_t *c = (sm_ctx_t *)o;
 	LOG_INF("→ IDLE");
 	temperature_stop();
+	atomic_store(&measuring_active, 0);
 	c->hal->led_set(LED_MEASURING, false);
 	c->led_measuring_on = false;
 	c->mqtt->publish_session_state(STATE_IDLE_STR);
@@ -238,7 +239,6 @@ static void state_measuring_exit(void *o)
 	LOG_DBG("Exiting MEASURING state");
 	sm_ctx_t *c = (sm_ctx_t *)o;
 	c->connected_mask = 0;
-	atomic_store(&measuring_active, 0);
 }
 
 /* ── State: DONE ─────────────────────────────────────────────────────── */
