@@ -17,3 +17,5 @@ tasks:
     desc: Run unit tests
     cmds:
       - west twister -T tests/unit -p native_sim -v --inline-logs
+
+

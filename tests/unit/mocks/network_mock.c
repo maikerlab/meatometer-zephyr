@@ -58,7 +58,6 @@ void network_mock_reset(void)
 	mock_connected = false;
 	mock_has_creds = false;
 	connect_called = false;
-	connect_called = false;
 	disconnect_called = false;
 }
 
