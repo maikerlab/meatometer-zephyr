@@ -5,6 +5,11 @@ static bool mock_initialized = false;
 static bool mock_connected = false;
 static float last_published_temp = 0.0f;
 static uint8_t last_published_sensor_slot = 0;
+static uint8_t last_discovery_mask;
+static uint8_t last_subscribe_targets_mask;
+static uint8_t last_target_state_slot;
+static float last_target_state_value;
+static const char *last_session_state;
 
 static int mock_init(void)
 {
@@ -36,25 +41,17 @@ static int mock_publish_temperature(uint8_t sensor_slot, float temp_celsius)
 	return 0;
 }
 
-static uint8_t last_discovery_mask;
-
 static int mock_publish_discovery(uint8_t sensor_mask)
 {
 	last_discovery_mask = sensor_mask;
 	return 0;
 }
 
-static uint8_t last_subscribe_targets_mask;
-
 static int mock_subscribe_targets(uint8_t sensor_mask)
 {
 	last_subscribe_targets_mask = sensor_mask;
 	return 0;
 }
-
-static uint8_t last_target_state_slot;
-static float last_target_state_value;
-static const char *last_session_state;
 
 static int mock_publish_target_state(uint8_t sensor_slot, float target_celsius)
 {
@@ -71,7 +68,6 @@ static int mock_publish_session_state(const char *state)
 
 static const mqtt_iface_t mock_iface = {
 	.init = mock_init,
-	.connect = mock_connect,
 	.is_connected = mock_is_connected,
 	.disconnect = mock_disconnect,
 	.publish_temperature = mock_publish_temperature,

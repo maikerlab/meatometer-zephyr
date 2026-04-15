@@ -82,7 +82,7 @@ void conn_fsm_init(const hal_iface_t *hal, const network_iface_t *wifi, const mq
 		LOG_INF("Stored credentials found, connecting to WiFi...");
 		smf_set_initial(SMF_CTX(&ctx), &states[ST_WIFI_CONNECTING]);
 		hal->led_blink(LED_STATUS, LED_BLINK_SLOW_MS);
-		wifi->connect_stored();
+		wifi->connect();
 	} else {
 		LOG_INF("No stored credentials, starting BLE provisioning...");
 		smf_set_initial(SMF_CTX(&ctx), &states[ST_PROVISIONING]);
@@ -139,7 +139,7 @@ static void state_wifi_connecting_entry(void *o)
 	conn_fsm_ctx_t *c = (conn_fsm_ctx_t *)o;
 	LOG_INF("→ WIFI_CONNECTING");
 	c->hal->led_blink(LED_STATUS, LED_BLINK_SLOW_MS);
-	c->wifi->connect_stored();
+	c->wifi->connect();
 	atomic_store(&online_flag, 0);
 }
 

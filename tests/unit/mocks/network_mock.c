@@ -18,12 +18,6 @@ static int mock_init(void)
 	return 0;
 }
 
-static int mock_connect(void)
-{
-	connect_called = true;
-	return 0;
-}
-
 static int mock_disconnect(void)
 {
 	disconnect_called = true;
@@ -49,11 +43,10 @@ static int mock_connect_stored(void)
 
 static const network_iface_t mock_iface = {
 	.init = mock_init,
-	.connect = mock_connect,
+	.connect = mock_connect_stored,
 	.disconnect = mock_disconnect,
 	.is_connected = mock_is_connected,
 	.has_credentials = mock_has_credentials,
-	.connect_stored = mock_connect_stored,
 };
 
 const network_iface_t *network_mock_get_iface(void)
