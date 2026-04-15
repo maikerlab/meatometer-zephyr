@@ -16,16 +16,15 @@ static int mock_init(void)
 	mock_initialized = true;
 	return 0;
 }
+static bool mock_is_connected(void)
+{
+	return mock_connected;
+}
 
 static int mock_connect(void)
 {
 	mock_connected = true;
 	return 0;
-}
-
-static bool mock_is_connected(void)
-{
-	return mock_connected;
 }
 
 static int mock_disconnect(void)
@@ -68,6 +67,7 @@ static int mock_publish_session_state(const char *state)
 
 static const mqtt_iface_t mock_iface = {
 	.init = mock_init,
+	.connect = mock_connect,
 	.is_connected = mock_is_connected,
 	.disconnect = mock_disconnect,
 	.publish_temperature = mock_publish_temperature,
