@@ -1,13 +1,5 @@
 menu "Meatometer application configuration"
 
-config APP_WIFI_SSID
-    string "Wi-Fi SSID to connect to"
-    default "YourWiFiSSID"
-
-config APP_WIFI_PASSWORD
-    string "Wi-Fi password for the specified SSID"
-    default "YourWiFiPassword"
-
 config APP_MQTT_BROKER_ADDR
 	string "MQTT broker IP address"
 

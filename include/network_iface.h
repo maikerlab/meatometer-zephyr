@@ -12,8 +12,10 @@ typedef struct {
 	 * @return 0 on success, negative error code on failure
 	 */
 	int (*init)(void);
-	/** Connects to the configured network.
-	 * @return 0 on success, negative error code on failure
+	/** Connects to WiFi using stored credentials.
+	 * Non-blocking — result delivered via EVT_WIFI_CONNECTED /
+	 * EVT_WIFI_CONNECT_FAILED.
+	 * @return 0 on success (connection initiated), negative error code on failure
 	 */
 	int (*connect)(void);
 	/** Disconnects from the network.
@@ -28,10 +30,4 @@ typedef struct {
 	 * @return true if credentials are stored, false otherwise
 	 */
 	bool (*has_credentials)(void);
-	/** Connects to WiFi using stored credentials.
-	 * Non-blocking — result delivered via EVT_WIFI_CONNECTED /
-	 * EVT_WIFI_CONNECT_FAILED.
-	 * @return 0 on success (connection initiated), negative error code on failure
-	 */
-	int (*connect_stored)(void);
 } network_iface_t;
