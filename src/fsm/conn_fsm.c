@@ -212,6 +212,7 @@ static void state_online_entry(void *o)
 	uint8_t mask = sensor_registry_get_connected_mask();
 	if (mask != 0) {
 		c->mqtt->publish_discovery(mask);
+		c->mqtt->subscribe_targets(mask);
 	}
 }
 

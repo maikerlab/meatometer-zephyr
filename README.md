@@ -18,7 +18,7 @@ A smart multi-probe meat thermometer built on the Nordic Semiconductor nRF7002 D
 ### Priority 2 — Target Temperature & Alerting
 
 - [x] Target temperature comparison and ALERT mode
-- [ ] Per-sensor independent target temperatures
+- [x] Per-sensor independent target temperatures
 - [ ] Target temperature persistence across power cycles (NVS)
 
 ### Priority 3 — Connectivity, Provisioning & MQTT
@@ -31,7 +31,7 @@ A smart multi-probe meat thermometer built on the Nordic Semiconductor nRF7002 D
 - [x] Event dispatcher connecting both FSMs
 - [x] Per-sensor MQTT topic publishing
 - [ ] Offline buffering with chronological replay on reconnect
-- [ ] MQTT subscription for target temperature control
+- [x] MQTT subscription for target temperature control
 - [ ] MQTT Last Will and Testament
 - [ ] Session state publishing via MQTT
 - [x] Home Assistant MQTT auto-discovery

@@ -53,7 +53,7 @@ typedef struct {
 	const hal_iface_t *hal;
 	const mqtt_iface_t *mqtt;
 	app_event_t current_event;
-	float target_temp;
+	float target_temp[SENSOR_MAX_COUNT];
 	bool led_measuring_on;
 	uint8_t connected_mask;
 } sm_ctx_t;
@@ -67,16 +67,22 @@ void session_fsm_init(const hal_iface_t *hal, const mqtt_iface_t *mqtt)
 {
 	ctx.hal = hal;
 	ctx.mqtt = mqtt;
-	ctx.target_temp = APP_TARGET_TEMP_DEFAULT_C;
+	for (int i = 0; i < SENSOR_MAX_COUNT; i++) {
+		ctx.target_temp[i] = APP_TARGET_TEMP_DEFAULT_C;
+	}
 	ctx.led_measuring_on = false;
 	ctx.connected_mask = 0;
 	atomic_store(&measuring_active, 0);
 	smf_set_initial(SMF_CTX(&ctx), &states[ST_IDLE]);
 }
 
-void session_fsm_set_target_temp(float celsius)
+void session_fsm_set_target_temp(uint8_t sensor_slot, float celsius)
 {
-	ctx.target_temp = celsius;
+	if (sensor_slot >= SENSOR_MAX_COUNT) {
+		return;
+	}
+	ctx.target_temp[sensor_slot] = celsius;
+	ctx.mqtt->publish_target_state(sensor_slot, celsius);
 }
 
 bool session_fsm_is_measuring(void)
@@ -123,6 +129,10 @@ static enum smf_state_result state_idle_run(void *o)
 	case EVT_BTN_MEASURE:
 		smf_set_state(SMF_CTX(c), &states[ST_DETECTING]);
 		break;
+	case EVT_TARGET_TEMP_SET:
+		session_fsm_set_target_temp(c->current_event.data.target.sensor_slot,
+					    c->current_event.data.target.temperature);
+		break;
 	default:
 		break;
 	}
@@ -166,7 +176,7 @@ static enum smf_state_result state_detecting_run(void *o)
 static void state_measuring_entry(void *o)
 {
 	sm_ctx_t *c = (sm_ctx_t *)o;
-	LOG_INF("→ MEASURING (target: %.1f °C)", (double)c->target_temp);
+	LOG_INF("→ MEASURING");
 	c->hal->led_set(LED_MEASURING, true);
 	c->led_measuring_on = true;
 	temperature_start();
@@ -181,12 +191,18 @@ static enum smf_state_result state_measuring_run(void *o)
 		/* Measure-Toggle → Back to IDLE */
 		smf_set_state(SMF_CTX(c), &states[ST_IDLE]);
 		break;
-	case EVT_TEMP_UPDATE:
+	case EVT_TEMP_UPDATE: {
 		handle_temperature_update(c);
-		if (c->current_event.data.temp.temperature >= c->target_temp) {
+		uint8_t slot = c->current_event.data.temp.sensor_slot;
+		if (c->current_event.data.temp.temperature >= c->target_temp[slot]) {
 			/* Target temperature reached → DONE */
 			smf_set_state(SMF_CTX(c), &states[ST_DONE]);
 		}
+		break;
+	}
+	case EVT_TARGET_TEMP_SET:
+		session_fsm_set_target_temp(c->current_event.data.target.sensor_slot,
+					    c->current_event.data.target.temperature);
 		break;
 	default:
 		break;
@@ -221,6 +237,10 @@ static enum smf_state_result state_done_run(void *o)
 		break;
 	case EVT_TEMP_UPDATE:
 		handle_temperature_update(c);
+		break;
+	case EVT_TARGET_TEMP_SET:
+		session_fsm_set_target_temp(c->current_event.data.target.sensor_slot,
+					    c->current_event.data.target.temperature);
 		break;
 	default:
 		break;

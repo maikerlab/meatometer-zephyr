@@ -36,4 +36,16 @@ typedef struct {
 	 * @return 0 on success, negative error code on failure
 	 */
 	int (*publish_discovery)(uint8_t sensor_mask);
+	/** Subscribe to target temperature command topics and publish HA number
+	 *  discovery configs for each sensor in the mask.
+	 * @param sensor_mask Bitmask of sensor slots (bit 0 = slot 0)
+	 * @return 0 on success, negative error code on failure
+	 */
+	int (*subscribe_targets)(uint8_t sensor_mask);
+	/** Publish current target temperature state for a sensor slot.
+	 * @param sensor_slot Sensor slot index
+	 * @param target_celsius Target temperature in °C
+	 * @return 0 on success, negative error code on failure
+	 */
+	int (*publish_target_state)(uint8_t sensor_slot, float target_celsius);
 } mqtt_iface_t;

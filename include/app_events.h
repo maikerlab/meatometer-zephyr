@@ -11,6 +11,8 @@ typedef enum {
 	EVT_TEMP_UPDATE,
 	/* Target temperature reached */
 	EVT_TEMP_REACHED,
+	/* Target temperature set via MQTT command */
+	EVT_TARGET_TEMP_SET,
 	/* WiFi connected */
 	EVT_WIFI_CONNECTED,
 	/* WiFi disconnected */
@@ -30,6 +32,10 @@ typedef struct {
 			uint8_t sensor_slot;
 			float temperature;
 		} temp;
+		struct {
+			uint8_t sensor_slot;
+			float temperature;
+		} target;
 		int error_code;
 	} data;
 } app_event_t;

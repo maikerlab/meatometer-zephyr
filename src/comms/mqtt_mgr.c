@@ -2,6 +2,7 @@
 #include "app_config.h"
 #include "app_events.h"
 #include <net/mqtt_helper.h>
+#include <stdlib.h>
 #include <string.h>
 #include <zephyr/app_version.h>
 #include <zephyr/kernel.h>
@@ -21,6 +22,8 @@ static int mqtt_mgr_disconnect(void);
 static bool mqtt_mgr_is_connected(void);
 static int mqtt_mgr_publish_temperature(uint8_t sensor_slot, float temp_celsius);
 static int mqtt_mgr_publish_discovery(uint8_t sensor_mask);
+static int mqtt_mgr_subscribe_targets(uint8_t sensor_mask);
+static int mqtt_mgr_publish_target_state(uint8_t sensor_slot, float target_celsius);
 
 static const mqtt_iface_t mqtt_iface = {
 	.init = mqtt_mgr_init,
@@ -29,6 +32,8 @@ static const mqtt_iface_t mqtt_iface = {
 	.disconnect = mqtt_mgr_disconnect,
 	.publish_temperature = mqtt_mgr_publish_temperature,
 	.publish_discovery = mqtt_mgr_publish_discovery,
+	.subscribe_targets = mqtt_mgr_subscribe_targets,
+	.publish_target_state = mqtt_mgr_publish_target_state,
 };
 
 /* ── HA discovery helpers ─────────────────────────────────────────────── */
@@ -148,16 +153,81 @@ static void on_mqtt_suback(uint16_t message_id, int result)
 	LOG_ERR("Topic subscription failed, error: %d", result);
 }
 
+#define TARGET_CMD_PREFIX     "meatometer/sensor/"
+#define TARGET_CMD_PREFIX_LEN (sizeof(TARGET_CMD_PREFIX) - 1)
+#define TARGET_CMD_SUFFIX     "/target/set"
+#define TARGET_CMD_SUFFIX_LEN (sizeof(TARGET_CMD_SUFFIX) - 1)
+
+static bool parse_target_cmd_topic(const char *topic_ptr, size_t topic_len, uint8_t *slot_out)
+{
+	if (topic_len < TARGET_CMD_PREFIX_LEN + 1 + TARGET_CMD_SUFFIX_LEN) {
+		return false;
+	}
+	if (memcmp(topic_ptr, TARGET_CMD_PREFIX, TARGET_CMD_PREFIX_LEN) != 0) {
+		return false;
+	}
+	const char *suffix = topic_ptr + topic_len - TARGET_CMD_SUFFIX_LEN;
+	if (memcmp(suffix, TARGET_CMD_SUFFIX, TARGET_CMD_SUFFIX_LEN) != 0) {
+		return false;
+	}
+	/* Extract slot number between prefix and suffix */
+	size_t digit_len = topic_len - TARGET_CMD_PREFIX_LEN - TARGET_CMD_SUFFIX_LEN;
+	if (digit_len == 0 || digit_len > 2) {
+		return false;
+	}
+	unsigned int slot = 0;
+	for (size_t i = 0; i < digit_len; i++) {
+		char ch = topic_ptr[TARGET_CMD_PREFIX_LEN + i];
+		if (ch < '0' || ch > '9') {
+			return false;
+		}
+		slot = slot * 10 + (ch - '0');
+	}
+	if (slot >= SENSOR_MAX_COUNT) {
+		return false;
+	}
+	*slot_out = (uint8_t)slot;
+	return true;
+}
+
 static void on_mqtt_publish(struct mqtt_helper_buf topic, struct mqtt_helper_buf payload)
 {
 	LOG_INF("Received payload: %.*s on topic: %.*s", payload.size, payload.ptr, topic.size,
 		topic.ptr);
 
+	/* Handle HA restart */
 	if (topic.size == (sizeof(MQTT_HA_STATUS_TOPIC) - 1) &&
 	    memcmp(topic.ptr, MQTT_HA_STATUS_TOPIC, topic.size) == 0 && payload.size >= 6 &&
 	    memcmp(payload.ptr, "online", 6) == 0 && discovered_mask != 0) {
 		LOG_INF("Home Assistant restarted, re-publishing discovery");
 		mqtt_mgr_publish_discovery(discovered_mask);
+		mqtt_mgr_subscribe_targets(discovered_mask);
+		return;
+	}
+
+	/* Handle target temperature command */
+	uint8_t slot;
+	if (parse_target_cmd_topic(topic.ptr, topic.size, &slot)) {
+		char buf[8];
+		size_t copy_len = MIN(payload.size, sizeof(buf) - 1);
+		memcpy(buf, payload.ptr, copy_len);
+		buf[copy_len] = '\0';
+
+		char *endptr;
+		float target = strtof(buf, &endptr);
+		if (endptr == buf) {
+			LOG_WRN("Invalid target payload for slot %u: %.*s", slot, payload.size,
+				payload.ptr);
+			return;
+		}
+
+		LOG_INF("Target temperature for slot %u set to %.1f °C", slot, (double)target);
+		app_event_t evt = {
+			.type = EVT_TARGET_TEMP_SET,
+			.data.target.sensor_slot = slot,
+			.data.target.temperature = target,
+		};
+		k_msgq_put(evt_queue, &evt, K_NO_WAIT);
 	}
 }
 
@@ -182,7 +252,7 @@ static int mqtt_mgr_init(void)
 				.on_suback = on_mqtt_suback,
 			},
 	};
-	mqtt_helper_init(&config);
+	return mqtt_helper_init(&config);
 }
 
 static int mqtt_mgr_connect(void)
@@ -298,6 +368,117 @@ static int mqtt_mgr_publish_discovery(uint8_t sensor_mask)
 
 	LOG_INF("Published HA discovery for mask 0x%02x", sensor_mask);
 	return 0;
+}
+
+/* ── Target temperature helpers ───────────────────────────────────────── */
+
+static int publish_ha_number_config(uint8_t slot, bool first)
+{
+	char topic[64];
+	snprintk(topic, sizeof(topic),
+		 MQTT_DISCOVERY_PREFIX "/number/meatometer_target_%02u/config", slot + 1);
+
+	char payload[512];
+	int len;
+
+	if (first) {
+		len = snprintk(payload, sizeof(payload),
+			       "{\"name\":\"Probe %u Target\","
+			       "\"stat_t\":\"" MQTT_TARGET_STATE_TOPIC_FMT "\","
+			       "\"cmd_t\":\"" MQTT_TARGET_CMD_TOPIC_FMT "\","
+			       "\"min\":30,\"max\":300,\"step\":1,"
+			       "\"unit_of_meas\":\"\\u00b0C\","
+			       "\"dev_cla\":\"temperature\","
+			       "\"uniq_id\":\"meatometer_target_%02u\","
+			       "\"avty_t\":\"" MQTT_AVAIL_TOPIC "\","
+			       "\"pl_avail\":\"online\","
+			       "\"pl_not_avail\":\"offline\","
+			       "\"dev\":{\"ids\":[\"" MQTT_CLIENT_ID "\"],"
+			       "\"name\":\"Meatometer\","
+			       "\"mf\":\"Custom\","
+			       "\"mdl\":\"Grill Thermometer\","
+			       "\"sw\":\"%s\"}}",
+			       slot + 1, slot, slot, slot + 1, APP_VERSION_STRING);
+	} else {
+		len = snprintk(payload, sizeof(payload),
+			       "{\"name\":\"Probe %u Target\","
+			       "\"stat_t\":\"" MQTT_TARGET_STATE_TOPIC_FMT "\","
+			       "\"cmd_t\":\"" MQTT_TARGET_CMD_TOPIC_FMT "\","
+			       "\"min\":30,\"max\":300,\"step\":1,"
+			       "\"unit_of_meas\":\"\\u00b0C\","
+			       "\"dev_cla\":\"temperature\","
+			       "\"uniq_id\":\"meatometer_target_%02u\","
+			       "\"avty_t\":\"" MQTT_AVAIL_TOPIC "\","
+			       "\"pl_avail\":\"online\","
+			       "\"pl_not_avail\":\"offline\","
+			       "\"dev\":{\"ids\":[\"" MQTT_CLIENT_ID "\"]}}",
+			       slot + 1, slot, slot, slot + 1);
+	}
+
+	LOG_INF("Publishing HA number discovery for slot %u", slot);
+	return publish_retained(topic, (const uint8_t *)payload, len);
+}
+
+static void subscribe_target_cmd(void)
+{
+	static struct mqtt_topic target_topic = {
+		.topic.utf8 = MQTT_TARGET_CMD_TOPIC_SUB,
+		.topic.size = sizeof(MQTT_TARGET_CMD_TOPIC_SUB) - 1,
+		.qos = MQTT_QOS_1_AT_LEAST_ONCE,
+	};
+	struct mqtt_subscription_list sub_list = {
+		.list = &target_topic,
+		.list_count = 1,
+		.message_id = mqtt_helper_msg_id_get(),
+	};
+	int err = mqtt_helper_subscribe(&sub_list);
+	if (err) {
+		LOG_WRN("Failed to subscribe to %s: %d", MQTT_TARGET_CMD_TOPIC_SUB, err);
+	} else {
+		LOG_INF("Subscribed to %s", MQTT_TARGET_CMD_TOPIC_SUB);
+	}
+}
+
+static int mqtt_mgr_subscribe_targets(uint8_t sensor_mask)
+{
+	if (!mqtt_connected) {
+		LOG_WRN("MQTT not connected - skipping target subscription");
+		return -ENOTCONN;
+	}
+
+	subscribe_target_cmd();
+
+	bool first = true;
+	for (uint8_t i = 0; i < SENSOR_MAX_COUNT; i++) {
+		if (!(sensor_mask & (1U << i))) {
+			continue;
+		}
+		int err = publish_ha_number_config(i, first);
+		if (err) {
+			LOG_ERR("Failed to publish HA number config for slot %u: %d", i, err);
+			return err;
+		}
+		first = false;
+	}
+
+	LOG_INF("Published HA number discovery for mask 0x%02x", sensor_mask);
+	return 0;
+}
+
+static int mqtt_mgr_publish_target_state(uint8_t sensor_slot, float target_celsius)
+{
+	if (!mqtt_connected) {
+		LOG_WRN("MQTT not connected - skipping target state publish");
+		return -ENOTCONN;
+	}
+
+	char payload[8];
+	snprintk(payload, sizeof(payload), "%.1f", (double)target_celsius);
+
+	char topic[48];
+	snprintk(topic, sizeof(topic), MQTT_TARGET_STATE_TOPIC_FMT, sensor_slot);
+
+	return publish_retained(topic, (const uint8_t *)payload, strlen(payload));
 }
 
 static bool mqtt_mgr_is_connected(void)

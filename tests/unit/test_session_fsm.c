@@ -18,6 +18,13 @@
 		.data.temp.temperature = (celsius),                                                \
 	})
 
+#define SEND_TARGET(slot, celsius)                                                                 \
+	session_fsm_handle_event(&(app_event_t){                                                   \
+		.type = EVT_TARGET_TEMP_SET,                                                       \
+		.data.target.sensor_slot = (slot),                                                 \
+		.data.target.temperature = (celsius),                                              \
+	})
+
 /* ── Test Suite Setup ────────────────────────────────────────────────── */
 
 static void before_each(void *f)
@@ -60,7 +67,7 @@ ZTEST(session_fsm, test_measure_toggle_stops_measuring)
 
 ZTEST(session_fsm, test_temp_below_target_stays_measuring)
 {
-	session_fsm_set_target_temp(80.0f);
+	session_fsm_set_target_temp(0, 80.0f);
 	SEND(EVT_BTN_MEASURE);
 
 	SEND_TEMP(0, 79.9f);
@@ -70,7 +77,7 @@ ZTEST(session_fsm, test_temp_below_target_stays_measuring)
 
 ZTEST(session_fsm, test_temp_reached_goes_to_done)
 {
-	session_fsm_set_target_temp(80.0f);
+	session_fsm_set_target_temp(0, 80.0f);
 	SEND(EVT_BTN_MEASURE);
 
 	SEND_TEMP(0, 80.0f);
@@ -81,7 +88,7 @@ ZTEST(session_fsm, test_temp_reached_goes_to_done)
 
 ZTEST(session_fsm, test_measure_from_done_goes_to_idle)
 {
-	session_fsm_set_target_temp(80.0f);
+	session_fsm_set_target_temp(0, 80.0f);
 	SEND(EVT_BTN_MEASURE);
 	SEND_TEMP(0, 80.0f);   /* → DONE */
 	SEND(EVT_BTN_MEASURE); /* DONE → IDLE */
@@ -128,4 +135,72 @@ ZTEST(session_fsm, test_session_stop_clears_connected_mask)
 
 	zassert_equal(session_fsm_get_connected_mask(), 0x00,
 		      "Connected mask must be cleared after session stop");
+}
+
+/* ── Per-sensor Target Temperature Tests ─────────────────────────────── */
+
+ZTEST(session_fsm, test_reached_target_with_multiple_sensors)
+{
+	sensor_registry_mock_set_connected_mask(0x03); /* slots 0 and 1 */
+	session_fsm_set_target_temp(0, 70.0f);
+	session_fsm_set_target_temp(1, 90.0f);
+	SEND(EVT_BTN_MEASURE); /* IDLE → DETECTING → MEASURING */
+
+	/* Slot 0 below its target, slot 1 below its target */
+	SEND_TEMP(0, 69.0f);
+	SEND_TEMP(1, 89.0f);
+	zassert_false(hal_mock_led_blink_get(LED_MEASURING), "Done LED must not be blinking");
+	zassert_true(session_fsm_is_measuring(), "Must stay measuring when both below targets");
+
+	/* Slot 1 reaches its own target → DONE */
+	SEND_TEMP(1, 90.0f);
+	zassert_true(hal_mock_led_blink_get(LED_MEASURING), "Done LED must be blinking");
+	zassert_true(session_fsm_is_measuring(),
+		     "Must stay measuring when one slot reaches target");
+
+	/* Slot 2 reaches its own target → DONE */
+	SEND_TEMP(0, 90.0f);
+	zassert_true(hal_mock_led_blink_get(LED_MEASURING), "Done LED must be blinking");
+	zassert_true(session_fsm_is_measuring(),
+		     "Must stay measuring when both slots reach target");
+}
+
+ZTEST(session_fsm, test_target_change_during_measuring)
+{
+	session_fsm_set_target_temp(0, 80.0f);
+	SEND(EVT_BTN_MEASURE); /* IDLE → DETECTING → MEASURING */
+
+	SEND_TEMP(0, 79.0f);
+	zassert_false(hal_mock_led_blink_get(LED_MEASURING), "Done LED must not be blinking");
+
+	/* Raise target mid-session */
+	session_fsm_set_target_temp(0, 100.0f);
+
+	SEND_TEMP(0, 80.0f);
+	zassert_false(hal_mock_led_blink_get(LED_MEASURING),
+		      "Done LED must not be blinking below new target");
+
+	SEND_TEMP(0, 100.0f);
+	zassert_true(hal_mock_led_blink_get(LED_MEASURING),
+		     "Done LED must be blinking if new target was reached");
+}
+
+ZTEST(session_fsm, test_target_set_event_updates_target)
+{
+	session_fsm_set_target_temp(0, 80.0f);
+	SEND(EVT_BTN_MEASURE); /* IDLE → DETECTING → MEASURING */
+
+	/* Receive target change via event (as from MQTT) */
+	SEND_TARGET(0, 50.0f);
+
+	/* Temperature at 50 should now trigger DONE */
+	SEND_TEMP(0, 50.0f);
+	zassert_true(hal_mock_led_blink_get(LED_MEASURING),
+		     "Done LED must be blinking if new target was reached");
+
+	/* Verify publish_target_state was called */
+	zassert_equal(mqtt_mock_last_target_state_slot(), 0, "Target state slot must be 0");
+	zassert_true(mqtt_mock_last_target_state_value() > 49.9f &&
+			     mqtt_mock_last_target_state_value() < 50.1f,
+		     "Target state value must be ~50.0");
 }
