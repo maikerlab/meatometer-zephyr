@@ -5,6 +5,7 @@
 #include "mocks/sensor_registry_mock.h"
 #include "mocks/temp_mock.h"
 #include "temperature.h"
+#include <string.h>
 #include <zephyr/ztest.h>
 
 /* ── Hilfsmakros ─────────────────────────────────────────────────────── */
@@ -31,6 +32,7 @@ static void before_each(void *f)
 {
 	(void)(f);
 	hal_mock_reset();
+	mqtt_mock_reset();
 	sensor_registry_mock_reset();
 	temp_mock_reset();
 	sensor_registry_mock_set_connected_mask(0x01);
@@ -203,4 +205,49 @@ ZTEST(session_fsm, test_target_set_event_updates_target)
 	zassert_true(mqtt_mock_last_target_state_value() > 49.9f &&
 			     mqtt_mock_last_target_state_value() < 50.1f,
 		     "Target state value must be ~50.0");
+}
+
+/* ── Session State Publishing Tests ──────────────────────────────────── */
+
+ZTEST(session_fsm, test_idle_publishes_session_state)
+{
+	/* After init, first event triggers IDLE entry via smf_run_state */
+	SEND(EVT_WIFI_CONNECTED); /* irrelevant event, just triggers run */
+
+	zassert_not_null(mqtt_mock_last_session_state(),
+			 "Session state must be published after init");
+	zassert_equal(strcmp(mqtt_mock_last_session_state(), "idle"), 0,
+		      "Session state must be 'idle'");
+}
+
+ZTEST(session_fsm, test_measuring_publishes_session_state)
+{
+	SEND(EVT_BTN_MEASURE); /* IDLE → DETECTING → MEASURING */
+
+	zassert_not_null(mqtt_mock_last_session_state(), "Session state must be published");
+	zassert_equal(strcmp(mqtt_mock_last_session_state(), "measuring"), 0,
+		      "Session state must be 'measuring'");
+}
+
+ZTEST(session_fsm, test_done_publishes_session_state)
+{
+	session_fsm_set_target_temp(0, 80.0f);
+	SEND(EVT_BTN_MEASURE); /* IDLE → DETECTING → MEASURING */
+	SEND_TEMP(0, 80.0f);   /* MEASURING → DONE */
+
+	zassert_not_null(mqtt_mock_last_session_state(), "Session state must be published");
+	zassert_equal(strcmp(mqtt_mock_last_session_state(), "done"), 0,
+		      "Session state must be 'done'");
+}
+
+ZTEST(session_fsm, test_back_to_idle_publishes_session_state)
+{
+	session_fsm_set_target_temp(0, 80.0f);
+	SEND(EVT_BTN_MEASURE); /* IDLE → DETECTING → MEASURING */
+	SEND_TEMP(0, 80.0f);   /* MEASURING → DONE */
+	SEND(EVT_BTN_MEASURE); /* DONE → IDLE */
+
+	zassert_not_null(mqtt_mock_last_session_state(), "Session state must be published");
+	zassert_equal(strcmp(mqtt_mock_last_session_state(), "idle"), 0,
+		      "Session state must be 'idle' after returning from DONE");
 }

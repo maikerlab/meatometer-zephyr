@@ -48,4 +48,9 @@ typedef struct {
 	 * @return 0 on success, negative error code on failure
 	 */
 	int (*publish_target_state)(uint8_t sensor_slot, float target_celsius);
+	/** Publish the current session state string.
+	 * @param state State string ("idle", "detecting", "measuring", "done")
+	 * @return 0 on success, negative error code on failure
+	 */
+	int (*publish_session_state)(const char *state);
 } mqtt_iface_t;
