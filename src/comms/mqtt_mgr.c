@@ -24,6 +24,7 @@ static int mqtt_mgr_publish_temperature(uint8_t sensor_slot, float temp_celsius)
 static int mqtt_mgr_publish_discovery(uint8_t sensor_mask);
 static int mqtt_mgr_subscribe_targets(uint8_t sensor_mask);
 static int mqtt_mgr_publish_target_state(uint8_t sensor_slot, float target_celsius);
+static int mqtt_mgr_publish_session_state(const char *state);
 
 static const mqtt_iface_t mqtt_iface = {
 	.init = mqtt_mgr_init,
@@ -34,6 +35,7 @@ static const mqtt_iface_t mqtt_iface = {
 	.publish_discovery = mqtt_mgr_publish_discovery,
 	.subscribe_targets = mqtt_mgr_subscribe_targets,
 	.publish_target_state = mqtt_mgr_publish_target_state,
+	.publish_session_state = mqtt_mgr_publish_session_state,
 };
 
 /* ── HA discovery helpers ─────────────────────────────────────────────── */
@@ -120,6 +122,45 @@ static void subscribe_ha_status(void)
 	} else {
 		LOG_INF("Subscribed to %s", MQTT_HA_STATUS_TOPIC);
 	}
+}
+
+static int publish_ha_session_state_config(bool first)
+{
+	char topic[64];
+	snprintk(topic, sizeof(topic), MQTT_DISCOVERY_PREFIX "/sensor/meatometer_session/config");
+
+	char payload[512];
+	int len;
+
+	if (first) {
+		len = snprintk(payload, sizeof(payload),
+			       "{\"name\":\"Session State\","
+			       "\"stat_t\":\"" MQTT_SESSION_STATE_TOPIC "\","
+			       "\"ic\":\"mdi:state-machine\","
+			       "\"uniq_id\":\"meatometer_session\","
+			       "\"avty_t\":\"" MQTT_AVAIL_TOPIC "\","
+			       "\"pl_avail\":\"online\","
+			       "\"pl_not_avail\":\"offline\","
+			       "\"dev\":{\"ids\":[\"" MQTT_CLIENT_ID "\"],"
+			       "\"name\":\"Meatometer\","
+			       "\"mf\":\"Custom\","
+			       "\"mdl\":\"Grill Thermometer\","
+			       "\"sw\":\"%s\"}}",
+			       APP_VERSION_STRING);
+	} else {
+		len = snprintk(payload, sizeof(payload),
+			       "{\"name\":\"Session State\","
+			       "\"stat_t\":\"" MQTT_SESSION_STATE_TOPIC "\","
+			       "\"ic\":\"mdi:state-machine\","
+			       "\"uniq_id\":\"meatometer_session\","
+			       "\"avty_t\":\"" MQTT_AVAIL_TOPIC "\","
+			       "\"pl_avail\":\"online\","
+			       "\"pl_not_avail\":\"offline\","
+			       "\"dev\":{\"ids\":[\"" MQTT_CLIENT_ID "\"]}}");
+	}
+
+	LOG_INF("Publishing HA session state discovery");
+	return publish_retained(topic, (const uint8_t *)payload, len);
 }
 
 /* ── Callback functions ──────────────────────────────────────────────── */
@@ -344,23 +385,27 @@ static int mqtt_mgr_publish_discovery(uint8_t sensor_mask)
 	}
 	LOG_DBG("Publishing HA discovery for sensor mask 0x%02x", sensor_mask);
 
-	bool first = true;
+	/* Session state entity is always published (first, with full device info) */
+	int err = publish_ha_session_state_config(true);
+	if (err) {
+		LOG_ERR("Failed to publish HA session state config: %d", err);
+		return err;
+	}
 
 	for (uint8_t i = 0; i < SENSOR_MAX_COUNT; i++) {
 		if (!(sensor_mask & (1U << i))) {
 			continue;
 		}
-		int err = publish_ha_config(i, first);
+		err = publish_ha_config(i, false);
 		if (err) {
 			LOG_ERR("Failed to publish HA config for slot %u: %d", i, err);
 			return err;
 		}
-		first = false;
 	}
 
 	discovered_mask = sensor_mask;
 
-	int err = publish_availability("online");
+	err = publish_availability("online");
 	if (err) {
 		LOG_ERR("Failed to publish availability: %d", err);
 		return err;
@@ -479,6 +524,16 @@ static int mqtt_mgr_publish_target_state(uint8_t sensor_slot, float target_celsi
 	snprintk(topic, sizeof(topic), MQTT_TARGET_STATE_TOPIC_FMT, sensor_slot);
 
 	return publish_retained(topic, (const uint8_t *)payload, strlen(payload));
+}
+
+static int mqtt_mgr_publish_session_state(const char *state)
+{
+	if (!mqtt_connected) {
+		LOG_WRN("MQTT not connected - skipping session state publish");
+		return -ENOTCONN;
+	}
+
+	return publish_retained(MQTT_SESSION_STATE_TOPIC, (const uint8_t *)state, strlen(state));
 }
 
 static bool mqtt_mgr_is_connected(void)

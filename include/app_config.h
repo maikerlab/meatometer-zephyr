@@ -13,3 +13,4 @@
 #define MQTT_TARGET_STATE_TOPIC_FMT "meatometer/sensor/%u/target"
 #define MQTT_TARGET_CMD_TOPIC_FMT   "meatometer/sensor/%u/target/set"
 #define MQTT_TARGET_CMD_TOPIC_SUB   "meatometer/sensor/+/target/set"
+#define MQTT_SESSION_STATE_TOPIC    "meatometer/session/state"

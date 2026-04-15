@@ -18,9 +18,6 @@
 
 LOG_MODULE_REGISTER(conn_fsm, LOG_LEVEL_DBG);
 
-#define LED_BLINK_SLOW_MS   1000
-#define LED_BLINK_DOUBLE_MS 250
-
 /* ── Forward declarations ────────────────────────────────────────────── */
 
 static void state_provisioning_entry(void *o);
@@ -89,7 +86,7 @@ void conn_fsm_init(const hal_iface_t *hal, const network_iface_t *wifi, const mq
 	} else {
 		LOG_INF("No stored credentials, starting BLE provisioning...");
 		smf_set_initial(SMF_CTX(&ctx), &states[ST_PROVISIONING]);
-		hal->led_blink(LED_STATUS, LED_BLINK_DOUBLE_MS);
+		hal->led_blink(LED_STATUS, LED_BLINK_FAST_MS);
 		ble_prov->start();
 	}
 }
@@ -111,7 +108,7 @@ static void state_provisioning_entry(void *o)
 {
 	conn_fsm_ctx_t *c = (conn_fsm_ctx_t *)o;
 	LOG_INF("→ PROVISIONING");
-	c->hal->led_blink(LED_STATUS, LED_BLINK_DOUBLE_MS);
+	c->hal->led_blink(LED_STATUS, LED_BLINK_FAST_MS);
 	c->ble_prov->start();
 	atomic_store(&online_flag, 0);
 }
@@ -205,13 +202,13 @@ static void state_online_entry(void *o)
 {
 	conn_fsm_ctx_t *c = (conn_fsm_ctx_t *)o;
 	LOG_INF("→ ONLINE");
-	c->hal->led_set(LED_STATUS, true);
 	c->ble_prov->stop();
+	c->hal->led_set(LED_STATUS, true);
 	atomic_store(&online_flag, 1);
 
 	uint8_t mask = sensor_registry_get_connected_mask();
+	c->mqtt->publish_discovery(mask);
 	if (mask != 0) {
-		c->mqtt->publish_discovery(mask);
 		c->mqtt->subscribe_targets(mask);
 	}
 }

@@ -53,11 +53,18 @@ static int mock_subscribe_targets(uint8_t sensor_mask)
 
 static uint8_t last_target_state_slot;
 static float last_target_state_value;
+static const char *last_session_state;
 
 static int mock_publish_target_state(uint8_t sensor_slot, float target_celsius)
 {
 	last_target_state_slot = sensor_slot;
 	last_target_state_value = target_celsius;
+	return 0;
+}
+
+static int mock_publish_session_state(const char *state)
+{
+	last_session_state = state;
 	return 0;
 }
 
@@ -70,6 +77,7 @@ static const mqtt_iface_t mock_iface = {
 	.publish_discovery = mock_publish_discovery,
 	.subscribe_targets = mock_subscribe_targets,
 	.publish_target_state = mock_publish_target_state,
+	.publish_session_state = mock_publish_session_state,
 };
 
 /* ── Public API ─────────────────────────────────────────────────── */
@@ -87,6 +95,7 @@ void mqtt_mock_reset(void)
 	last_subscribe_targets_mask = 0;
 	last_target_state_slot = 0;
 	last_target_state_value = 0.0f;
+	last_session_state = NULL;
 	mock_initialized = false;
 	mock_connected = false;
 }
@@ -117,4 +126,8 @@ uint8_t mqtt_mock_last_target_state_slot(void)
 float mqtt_mock_last_target_state_value(void)
 {
 	return last_target_state_value;
+}
+const char *mqtt_mock_last_session_state(void)
+{
+	return last_session_state;
 }

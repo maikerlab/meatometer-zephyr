@@ -9,3 +9,4 @@ uint8_t mqtt_mock_last_published_sensor_slot(void);
 uint8_t mqtt_mock_last_discovery_mask(void);
 uint8_t mqtt_mock_last_target_state_slot(void);
 float mqtt_mock_last_target_state_value(void);
+const char *mqtt_mock_last_session_state(void);

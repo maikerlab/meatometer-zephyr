@@ -30,14 +30,23 @@ static enum smf_state_result state_done_run(void *o);
 
 /* ── State-Enum ──────────────────────────────────────────────────────── */
 
-enum app_state {
+enum session_state {
 	ST_IDLE,
 	ST_DETECTING,
 	ST_MEASURING,
 	ST_DONE
 };
 
-/* ── SMF State-Table ─────────────────────────────────────────────────── */
+/* ── State Strings, as sent per MQTT ─────────────────────────────────── */
+
+#define STATE_IDLE_STR      "idle"
+#define STATE_DETECTING_STR "detecting"
+#define STATE_MEASURING_STR "measuring"
+#define STATE_DONE_STR      "done"
+
+/* ── State Machine Definitions ───────────────────────────────────────── */
+
+/* SMF State-Table */
 static const struct smf_state states[] = {
 	[ST_IDLE] = SMF_CREATE_STATE(state_idle_entry, state_idle_run, NULL, NULL, NULL),
 	[ST_DETECTING] =
@@ -47,7 +56,7 @@ static const struct smf_state states[] = {
 	[ST_DONE] = SMF_CREATE_STATE(state_done_entry, state_done_run, NULL, NULL, NULL),
 };
 
-/* ── Context ─────────────────────────────────────────────────────────── */
+/* State Machine Context */
 typedef struct {
 	struct smf_ctx smf; // Must be first element
 	const hal_iface_t *hal;
@@ -120,6 +129,7 @@ static void state_idle_entry(void *o)
 	temperature_stop();
 	c->hal->led_set(LED_MEASURING, false);
 	c->led_measuring_on = false;
+	c->mqtt->publish_session_state(STATE_IDLE_STR);
 }
 
 static enum smf_state_result state_idle_run(void *o)
@@ -133,6 +143,9 @@ static enum smf_state_result state_idle_run(void *o)
 		session_fsm_set_target_temp(c->current_event.data.target.sensor_slot,
 					    c->current_event.data.target.temperature);
 		break;
+	case EVT_MQTT_CONNECTED:
+		c->mqtt->publish_session_state(STATE_IDLE_STR);
+		break;
 	default:
 		break;
 	}
@@ -145,6 +158,9 @@ static void state_detecting_entry(void *o)
 {
 	sm_ctx_t *c = (sm_ctx_t *)o;
 	LOG_INF("→ DETECTING");
+	c->mqtt->publish_session_state(STATE_DETECTING_STR);
+
+	k_sleep(K_SECONDS(1)); // Simulate sensor detection delay
 
 	uint8_t mask = sensor_registry_scan();
 	c->connected_mask = mask;
@@ -165,6 +181,9 @@ static enum smf_state_result state_detecting_run(void *o)
 	case EVT_BTN_MEASURE:
 		smf_set_state(SMF_CTX(c), &states[ST_IDLE]);
 		break;
+	case EVT_MQTT_CONNECTED:
+		c->mqtt->publish_session_state(STATE_DETECTING_STR);
+		break;
 	default:
 		break;
 	}
@@ -181,6 +200,7 @@ static void state_measuring_entry(void *o)
 	c->led_measuring_on = true;
 	temperature_start();
 	atomic_store(&measuring_active, 1);
+	c->mqtt->publish_session_state(STATE_MEASURING_STR);
 }
 
 static enum smf_state_result state_measuring_run(void *o)
@@ -204,6 +224,9 @@ static enum smf_state_result state_measuring_run(void *o)
 		session_fsm_set_target_temp(c->current_event.data.target.sensor_slot,
 					    c->current_event.data.target.temperature);
 		break;
+	case EVT_MQTT_CONNECTED:
+		c->mqtt->publish_session_state(STATE_MEASURING_STR);
+		break;
 	default:
 		break;
 	}
@@ -224,7 +247,8 @@ static void state_done_entry(void *o)
 {
 	sm_ctx_t *c = (sm_ctx_t *)o;
 	LOG_INF("→ DONE");
-	c->hal->led_blink(LED_MEASURING, 500);
+	c->hal->led_blink(LED_MEASURING, LED_BLINK_FAST_MS);
+	c->mqtt->publish_session_state(STATE_DONE_STR);
 }
 
 static enum smf_state_result state_done_run(void *o)
@@ -241,6 +265,9 @@ static enum smf_state_result state_done_run(void *o)
 	case EVT_TARGET_TEMP_SET:
 		session_fsm_set_target_temp(c->current_event.data.target.sensor_slot,
 					    c->current_event.data.target.temperature);
+		break;
+	case EVT_MQTT_CONNECTED:
+		c->mqtt->publish_session_state(STATE_DONE_STR);
 		break;
 	default:
 		break;

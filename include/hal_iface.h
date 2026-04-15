@@ -3,6 +3,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* ── LEDs ─────────────────────────────────────────────────────────── */
+
+#define LED_BLINK_SLOW_MS 1000
+#define LED_BLINK_FAST_MS 250
+
 typedef enum {
 	/* Measurement is in progress */
 	LED_MEASURING = 0,
