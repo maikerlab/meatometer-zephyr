@@ -15,6 +15,7 @@
 #include "hal/hal.h"
 #include "sensor/dummy.h"
 #include "sensor/sensor_registry.h"
+#include "sensor/max6675.h"
 #include "temperature.h"
 #include <zephyr/app_version.h>
 #include <zephyr/kernel.h>
@@ -50,10 +51,8 @@ int main(void)
 
 	// Initialize sensor registry
 	sensor_registry_init();
-	// Register dummy sensors - TODO: replace with real sensors if interface is implemented
-	sensor_registry_register(0, sensor_dummy_get_iface());
-	sensor_registry_register(1, sensor_dummy_get_iface());
-	sensor_registry_register(2, sensor_dummy_get_iface());
+	sensor_registry_register(0, max6675_get_iface());
+	// sensor_registry_register(1, sensor_dummy_get_iface());
 	uint8_t discovered_mask = sensor_registry_scan();
 	(void)discovered_mask;
 

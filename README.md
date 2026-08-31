@@ -38,19 +38,31 @@ A smart multi-probe meat thermometer built on the Nordic Semiconductor nRF7002 D
 
 ## Hardware
 
-| Component | Details |
-|-----------|---------|
-| Board | [nRF7002 DK](https://www.nordicsemi.com/Products/Development-hardware/nRF7002-DK) (nRF5340 + nRF7002 WiFi 6) |
-| Sensors | Up to 4 thermocouples via MAX31855 on SPI1 |
-| Buttons | Button 1 — session control, Button 2 — re-provisioning |
-| LEDs | LED 1 — connectivity state, LED 2 — session / alert state |
+| Component | Details                                                                                                      |
+| --------- | ------------------------------------------------------------------------------------------------------------ |
+| Board     | [nRF7002 DK](https://www.nordicsemi.com/Products/Development-hardware/nRF7002-DK) (nRF5340 + nRF7002 WiFi 6) |
+| Sensors   | Up to 4 thermocouples via MAX31855 on SPI1                                                                   |
+| Buttons   | Button 1 — session control, Button 2 — re-provisioning                                                       |
+| LEDs      | LED 1 — connectivity state, LED 2 — session / alert state                                                    |
 
 ### LED Patterns
 
-| LED | OFF | Steady ON | Slow blink | Double-blink | Fast blink (500 ms) |
-|-----|-----|-----------|------------|--------------|---------------------|
-| LED 1 (Connectivity) | — | Online | Connecting / offline | BLE provisioning | Boot |
-| LED 2 (Session) | Idle | Measuring | — | — | Alert (target reached) |
+| LED                  | OFF  | Steady ON | Slow blink           | Double-blink     | Fast blink (500 ms)    |
+| -------------------- | ---- | --------- | -------------------- | ---------------- | ---------------------- |
+| LED 1 (Connectivity) | —    | Online    | Connecting / offline | BLE provisioning | Boot                   |
+| LED 2 (Session)      | Idle | Measuring | —                    | —                | Alert (target reached) |
+
+### Temperature sensors
+
+MAX6675 connection:
+
+| Signal | LevelShifter (HV side) | LevelShifter (LV side) | nRF7002DK   |
+| ------ | ---------------------- | ---------------------- | ----------- |
+| GND    | GND                    | GND                    | GND         |
+| VCC    | HV                     | LV                     | VDD         |
+| SCK    | HV1                    | LV1                    | P1.15 / D13 |
+| SO     | HV2                    | LV2                    | P1.14 / D12 |
+| CS     | HV3                    | LV3                    | P1.12 / D10 |
 
 ## Architecture
 
